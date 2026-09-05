@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>Fyzen — treino, alimentação e evolução</title>
+    <meta name="theme-color" content="#0c171a" />
+    <meta
+      name="description"
+      content="Organize seu treino, registre sua alimentação e acompanhe sua evolução com o Fyzen."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600&family=Space+Grotesk:wght@500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: #0c171a;
+        color: #8b9aab;
+        font-family: system-ui, sans-serif;
+      }
+      #boot-fallback {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+      }
+      #boot-fallback .spin {
+        width: 28px;
+        height: 28px;
+        border: 2px solid rgba(74, 155, 140, 0.25);
+        border-top-color: #4a9b8c;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div id="boot-fallback" aria-live="polite">
+        <div class="spin" aria-hidden="true"></div>
+        <p>Carregando Fyzen…</p>
+      </div>
+    </div>
+    <script type="module" src="/src/main.jsx"></script>
+    <div id="modal-root"></div>
+  </body>
+</html>
