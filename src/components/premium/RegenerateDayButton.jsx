@@ -18,8 +18,13 @@ export default function RegenerateDayButton({
     setLoading(true);
     try {
       const novoDia = await regenerarDiaIA(form, diaSelecionado, dayData);
-      if (!Array.isArray(novoDia) || !novoDia.length)
-        throw new Error("Nenhum treino retornado");
+      if (!Array.isArray(novoDia) || !novoDia.length) {
+        showToast(
+          "Fyzen AI está indisponível no momento. Seu treino atual foi mantido.",
+          "error",
+        );
+        return;
+      }
       await onRegenerated(novoDia);
       showToast("Novo treino do dia salvo.");
     } catch (error) {

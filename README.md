@@ -1,6 +1,16 @@
-# Fyzen
+# Fyzen 2.0
 
-Aplicação pessoal de treino, alimentação e acompanhamento de atividade. React 18, Vite, Tailwind, Firebase Auth/Firestore, Lucide e Framer Motion.
+Fyzen é um fitness OS pessoal: conhece a rotina, organiza o plano, registra cada série, preserva o histórico e transforma dados em próximos passos claros. Continua em React 18 + Vite + Tailwind + Firebase Auth/Firestore, sem migração de framework ou banco.
+
+## O que mudou na 2.0
+
+- Modo Treino dedicado, pensado para uma mão: carga, repetições, atalhos de peso e descanso por timestamp.
+- Sessões versionadas com autosave local e sincronização idempotente no Firestore; um refresh não perde uma série já registrada.
+- Histórico compatível: ao encerrar uma sessão detalhada, o resumo também permanece em `historicoTreino/{uid}/registros` para os recursos existentes.
+- Cálculos determinísticos de volume, e1RM (Epley, apenas até 12 reps), PRs e sugestão de progressão; IA interpreta, não calcula.
+- Home mobile-first, aba Fyzen AI contextual e Progresso enriquecido quando há sessões detalhadas.
+
+Consulte [modelo de dados](docs/DATA-MODEL.md), [arquitetura da IA](docs/AI-ARCHITECTURE.md) e [direção mobile](docs/FRONTEND-DESIGN.md).
 
 ## Desenvolvimento
 
@@ -35,6 +45,10 @@ Os testes abrem um servidor separado na porta 5175 com `vite.test.config.js`. Fi
 - Perfil de treino recolhível, checklist, personalização, geração e relatório semanal.
 - Diário alimentar, metas, progresso, painel Ultra, planos, checkout, assinatura e administração.
 - Diálogos nativos com teclado e foco, feedback de salvamento, estados vazios e redução de movimento.
+
+## Dados e segurança
+
+Variáveis existentes são preservadas: `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID`, `VITE_AI_WORKOUT_API_URL`, `VITE_AI_SERVER_URL` e `VITE_ADMIN_EMAIL`. Não há chave de LLM no browser. As regras versionadas em [firestore.rules](firestore.rules) incluem a proteção de `workoutSessions` por usuário.
 
 Tokens e componentes estão em `src/components/index.css`, `tailwind.config.js` e `src/components`. As telas são carregadas sob demanda. A navegação mantém os identificadores existentes em `App.jsx`.
 

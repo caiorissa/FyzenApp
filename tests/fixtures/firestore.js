@@ -27,6 +27,11 @@ if (!data["planos/qa-user"] && scenario !== "empty")
       })),
     },
   };
+if (!data["users/cliente-01"])
+  data["users/cliente-01"] = {
+    nome: "Cliente de teste",
+    email: "cliente@example.test",
+  };
 if (plan !== "free")
   data["assinaturas/qa-user"] = {
     plano: plan,
@@ -43,10 +48,15 @@ export const doc = (base, ...parts) => ({
     ...(parts.length ? parts : [crypto.randomUUID()]),
   ].join("/"),
 });
-export const query = (ref) => ref;
+export const query = (ref, ...constraints) => ({ ...ref, constraints });
 export const orderBy = () => ({});
 export const limit = () => ({});
-export const where = () => ({});
+export const where = (field, operator, value) => ({
+  type: "where",
+  field,
+  operator,
+  value,
+});
 export const serverTimestamp = () => Date.now();
 export const Timestamp = { now: () => Date.now() };
 export const arrayUnion = (...items) => items;
@@ -64,6 +74,15 @@ export async function getDocs(ref) {
       ([path]) =>
         path.startsWith(`${ref.path}/`) &&
         path.split("/").length === ref.path.split("/").length + 1,
+    )
+    .filter(([, value]) =>
+      (ref.constraints || []).every((constraint) => {
+        if (constraint.type !== "where") return true;
+        return (
+          constraint.operator === "==" &&
+          value?.[constraint.field] === constraint.value
+        );
+      }),
     )
     .map(([path, value]) => snapshot(path, value));
   return {

@@ -26,6 +26,10 @@ import Navbar from "./components/Navbar.jsx";
 const CheckoutProPage = lazy(() => import("./screens/CheckoutProPage.jsx"));
 const CheckoutUltraPage = lazy(() => import("./screens/CheckoutUltraPage.jsx"));
 const BillingScreen = lazy(() => import("./screens/BillingScreen.jsx"));
+const WorkoutSessionScreen = lazy(
+  () => import("./screens/WorkoutSessionScreen.jsx"),
+);
+const CoachScreen = lazy(() => import("./screens/CoachScreen.jsx"));
 
 import { subscriptionEngine } from "./lib/subscriptionEngine";
 import { PremiumProvider } from "./context/PremiumContext.jsx";
@@ -44,6 +48,7 @@ import {
   Menu,
   X,
   ChevronRight,
+  Sparkles,
 } from "lucide-react";
 
 import { AnimatePresence, motion } from "framer-motion";
@@ -60,6 +65,8 @@ const SCREENS = {
   BILLING: "billing",
   ULTRA_DASHBOARD: "ultra-dashboard",
   ADMIN: "admin",
+  WORKOUT_SESSION: "workout-session",
+  COACH: "coach",
 };
 
 const fadeSlide = {
@@ -134,6 +141,7 @@ function AppShell() {
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [authError, setAuthError] = useState(null);
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [selectedWorkout, setSelectedWorkout] = useState(null);
 
   const navigate = (screen) => {
     setCurrentScreen(screen);
@@ -270,8 +278,9 @@ function AppShell() {
   const navItems = [
     { icon: HomeIcon, label: "Início", value: SCREENS.HOME },
     { icon: Dumbbell, label: "Treino", value: SCREENS.PLAN },
-    { icon: Apple, label: "Alimentação", value: SCREENS.NUTRITION },
+    { icon: Sparkles, label: "IA", value: SCREENS.COACH, accent: true },
     { icon: TrendingUp, label: "Progresso", value: SCREENS.PROGRESS },
+    { icon: Apple, label: "Alimentação", value: SCREENS.NUTRITION },
     { icon: Target, label: "Metas", value: SCREENS.GOALS },
     {
       icon: BadgeCheck,
@@ -297,10 +306,37 @@ function AppShell() {
     switch (currentScreen) {
       case SCREENS.HOME:
         return (
-          <HomeScreen friendlyName={friendlyName} onSelectScreen={navigate} />
+          <HomeScreen
+            friendlyName={friendlyName}
+            user={user}
+            onSelectScreen={navigate}
+            onStartWorkout={(workout, day) => {
+              setSelectedWorkout({ workout, day });
+              navigate(SCREENS.WORKOUT_SESSION);
+            }}
+          />
         );
       case SCREENS.PLAN:
-        return <PlanScreen />;
+        return (
+          <PlanScreen
+            onStartWorkout={(workout, day) => {
+              setSelectedWorkout({ workout, day });
+              navigate(SCREENS.WORKOUT_SESSION);
+            }}
+          />
+        );
+      case SCREENS.COACH:
+        return <CoachScreen user={user} onSelectScreen={navigate} />;
+      case SCREENS.WORKOUT_SESSION:
+        return (
+          <WorkoutSessionScreen
+            user={user}
+            workout={selectedWorkout?.workout}
+            day={selectedWorkout?.day}
+            onExit={() => navigate(SCREENS.PLAN)}
+            onComplete={() => navigate(SCREENS.PROGRESS)}
+          />
+        );
       case SCREENS.NUTRITION:
         return <NutritionScreen user={user} userPlan={userPlan} />;
       case SCREENS.PROGRESS:
@@ -333,7 +369,15 @@ function AppShell() {
         return <UltraDashboardProtected onSelectScreen={navigate} />;
       default:
         return (
-          <HomeScreen friendlyName={friendlyName} onSelectScreen={navigate} />
+          <HomeScreen
+            friendlyName={friendlyName}
+            user={user}
+            onSelectScreen={navigate}
+            onStartWorkout={(workout, day) => {
+              setSelectedWorkout({ workout, day });
+              navigate(SCREENS.WORKOUT_SESSION);
+            }}
+          />
         );
     }
   };
@@ -344,9 +388,22 @@ function AppShell() {
   const primaryMobile = [
     SCREENS.HOME,
     SCREENS.PLAN,
-    SCREENS.NUTRITION,
+    SCREENS.COACH,
     SCREENS.PROGRESS,
   ];
+  if (currentScreen === SCREENS.WORKOUT_SESSION) {
+    return (
+      <Suspense fallback={<LoadingScreen label="Abrindo treino…" />}>
+        <WorkoutSessionScreen
+          user={user}
+          workout={selectedWorkout?.workout}
+          day={selectedWorkout?.day}
+          onExit={() => navigate(SCREENS.PLAN)}
+          onComplete={() => navigate(SCREENS.PROGRESS)}
+        />
+      </Suspense>
+    );
+  }
   return (
     <PremiumProvider userPlan={userPlan} onPlanChange={setUserPlan}>
       <div className="app-shell">

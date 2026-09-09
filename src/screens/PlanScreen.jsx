@@ -9,6 +9,7 @@ import {
   Apple,
   BarChart2,
   Flame,
+  Loader2,
 } from "lucide-react";
 import { db } from "../lib/firebaseConfig";
 import { subscribeAuth } from "../lib/subscribeAuth";
@@ -18,7 +19,6 @@ import WeeklyInsightsModal from "@/components/premium/WeeklyInsightsModal";
 import { gerarWeeklyInsights } from "@/lib/premium/weeklyInsights";
 import RegenerateDayButton from "@/components/premium/RegenerateDayButton";
 import RegenerateWeekButton from "@/components/premium/RegenerateWeekButton";
-import EditGroupModal from "@/components/premium/EditGroupModal";
 import { usePremium } from "@/context/PremiumContext";
 import { gerarPlanoSemanaIA } from "@/lib/aiWorkoutService";
 
@@ -55,7 +55,7 @@ const fadeIn = {
 };
 
 const DIAS = ["segunda", "terça", "quarta", "quinta", "sexta"];
-export default function PlanScreen() {
+export default function PlanScreen({ onStartWorkout }) {
   const [form, setForm] = useState(initialForm);
   const savedForm = useRef(JSON.stringify(initialForm));
   const [isEditingForm, setIsEditingForm] = useState(false);
@@ -66,11 +66,11 @@ export default function PlanScreen() {
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
   const [weeklyInsights, setWeeklyInsights] = useState(null);
   const [openInsights, setOpenInsights] = useState(false);
   const [diaSelecionado, setDiaSelecionado] = useState("segunda");
-  const [editingGroup, setEditingGroup] = useState(null);
   const skipInsights = false;
   const [bloqueado, setBloqueado] = useState(false);
   const [mensagem, setMensagem] = useState("");
@@ -663,52 +663,69 @@ export default function PlanScreen() {
     const analise = calcularAnalise();
     if (!analise) return alert("Altura, peso e idade inválidos.");
 
-    let planoTreino;
-    if (isUltra) {
-      planoTreino = await gerarPlanoSemanaIA(form);
+    setSaving(true);
+    setStatusMsg("");
+    console.info(
+      `[Fyzen Plano] Atualização iniciada com ${isUltra ? "Fyzen AI" : "gerador padrão"}.`,
+    );
+    try {
+      let planoTreino;
+      let usouFallbackDaIA = false;
+      if (isUltra) {
+        setAiGenerating(true);
+        planoTreino = await gerarPlanoSemanaIA(form);
+        setAiGenerating(false);
 
-      if (!planoTreino || planoTreino.length === 0) {
-        alert("Falha ao gerar treino com IA. Usando método tradicional.");
+        if (!planoTreino || planoTreino.length === 0) {
+          console.warn(
+            "[Fyzen Plano] IA indisponível; usando gerador padrão para este plano.",
+          );
+          usouFallbackDaIA = true;
+          planoTreino = gerarPlanoTreino(form.objetivo, form.local, form);
+        }
+      } else {
         planoTreino = gerarPlanoTreino(form.objetivo, form.local, form);
       }
-    } else {
-      // 🟢 PRO/FREE → usa sistema tradicional
-      planoTreino = gerarPlanoTreino(form.objetivo, form.local, form);
-    }
 
-    const calorias =
-      form.objetivo === "emagrecimento"
-        ? analise.gasto - 400
-        : form.objetivo === "hipertrofia"
-          ? analise.gasto + 400
-          : analise.gasto;
+      const calorias =
+        form.objetivo === "emagrecimento"
+          ? analise.gasto - 400
+          : form.objetivo === "hipertrofia"
+            ? analise.gasto + 400
+            : analise.gasto;
+      const dados = {
+        form,
+        analysis: analise,
+        plan: {
+          info: form,
+          treinos: planoTreino,
+        },
+        nutrition: {
+          total: calorias,
+          plano: [],
+        },
+        ownerUid: user.uid,
+        updatedAt: serverTimestamp(),
+      };
 
-    const dados = {
-      form,
-      analysis: analise,
-      plan: {
-        info: form,
-        treinos: planoTreino,
-      },
-      nutrition: {
-        total: calorias,
-        plano: [],
-      },
-      ownerUid: user.uid,
-      updatedAt: serverTimestamp(),
-    };
-
-    setSaving(true);
-    try {
+      setStatusMsg("Salvando seu plano...");
       setAnalysis(analise);
       setPlan(dados.plan);
       setNutrition(dados.nutrition);
       await salvarPlano(user.uid, dados);
-      setStatusMsg("Plano gerado e salvo!");
+      console.info("[Fyzen Plano] Plano salvo com sucesso.");
+      setStatusMsg(
+        usouFallbackDaIA
+          ? "Plano gerado e salvo. A Fyzen AI está indisponível no momento, então usamos o método padrão."
+          : "Plano gerado e salvo!",
+      );
     } catch (err) {
-      console.error("Erro ao gerar/plano:", err);
+      console.error("[Fyzen Plano] Não foi possível salvar o plano.", {
+        tipo: err?.name || "Erro desconhecido",
+      });
       setStatusMsg("Erro ao gerar seu plano.");
     } finally {
+      setAiGenerating(false);
       setSaving(false);
     }
   };
@@ -734,6 +751,16 @@ export default function PlanScreen() {
         >
           {statusMsg}
         </p>
+      )}
+      {aiGenerating && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="surface-card flex items-center gap-3 px-4 py-3 text-sm text-fyzen-accent"
+        >
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          <span>Fyzen AI está gerando seu plano...</span>
+        </div>
       )}
 
       <details className="surface-card profile-details" open={!plan}>
@@ -873,11 +900,13 @@ export default function PlanScreen() {
               className="btn-primary shrink-0"
             >
               <Dumbbell className="w-4 h-4" />
-              {saving
-                ? "Gerando..."
-                : plan
-                  ? "Atualizar meu plano"
-                  : "Gerar meu plano"}
+              {aiGenerating
+                ? "Fyzen AI gerando..."
+                : saving
+                  ? "Salvando..."
+                  : plan
+                    ? "Atualizar meu plano"
+                    : "Gerar meu plano"}
             </button>
           </div>
         </div>
@@ -1004,25 +1033,14 @@ export default function PlanScreen() {
                         bloqueado={bloqueado}
                       />
 
-                      <div className="mt-3">
-                        {isPro ? (
-                          <button
-                            className="text-xs text-fyzen-accent underline hover:text-fyzen-accent"
-                            onClick={() =>
-                              setEditingGroup({
-                                index: treino._globalIndex,
-                                grupo: treino,
-                              })
-                            }
-                          >
-                            Personalizar exercícios
-                          </button>
-                        ) : (
-                          <p className="text-xs text-slate-500">
-                            Personalização de grupo disponível no plano Pro.
-                          </p>
-                        )}
-                      </div>
+                      <button
+                        type="button"
+                        className="btn-primary mt-4 w-full"
+                        disabled={bloqueado}
+                        onClick={() => onStartWorkout?.(treino, diaSelecionado)}
+                      >
+                        <Dumbbell size={17} /> Iniciar modo treino
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -1091,40 +1109,6 @@ export default function PlanScreen() {
             />
           </div>
         </motion.section>
-      )}
-
-      {editingGroup && (
-        <EditGroupModal
-          open={!!editingGroup}
-          grupoOriginal={editingGroup.grupo}
-          objetivo={form.objetivo}
-          local={form.local}
-          form={form}
-          userPlan={nivel}
-          onClose={() => setEditingGroup(null)}
-          onReplaceGroup={async (novoGrupo) => {
-            const novosTreinos = [...plan.treinos];
-            novosTreinos[editingGroup.index] = novoGrupo;
-
-            const novoPlano = { ...plan, treinos: novosTreinos };
-
-            setPlan(novoPlano);
-            setEditingGroup(null);
-
-            if (user) {
-              try {
-                await salvarPlano(user.uid, {
-                  plan: novoPlano,
-                  updatedAt: serverTimestamp(),
-                });
-                setStatusMsg("Grupo personalizado salvo na nuvem.");
-              } catch (err) {
-                console.error("Erro ao salvar grupo personalizado:", err);
-                setStatusMsg("Não foi possível salvar a personalização.");
-              }
-            }
-          }}
-        />
       )}
 
       {openInsights && (

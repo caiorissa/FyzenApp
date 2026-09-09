@@ -1,177 +1,178 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { collection, doc, getDoc, getDocs } from "firebase/firestore";
 import {
-  collection,
-  query,
-  orderBy,
-  limit,
-  onSnapshot,
-} from "firebase/firestore";
-import { db } from "../lib/firebaseConfig";
-import {
-  Bell,
+  ArrowRight,
+  BrainCircuit,
   Dumbbell,
-  Target,
-  Apple,
-  ArrowUpRight,
   Flame,
+  Moon,
+  Play,
+  Sparkles,
 } from "lucide-react";
-import PageHeader from "../components/PageHeader.jsx";
+import { db } from "../lib/firebaseConfig.js";
+import { loadActiveSession } from "../lib/workout/sessionStorage.js";
+
+const DAYS = [
+  "domingo",
+  "segunda",
+  "terça",
+  "quarta",
+  "quinta",
+  "sexta",
+  "sábado",
+];
+const firstName = (name) => name.split(" ")[0] || "Atleta";
 
 export default function HomeScreen({
   friendlyName = "Atleta",
+  user,
   onSelectScreen,
+  onStartWorkout,
 }) {
-  const name = friendlyName;
-  const passos = [
-    {
-      title: "Seu treino",
-      description:
-        "Um plano para o seu objetivo, seu nível e o lugar onde você treina.",
-      icon: Dumbbell,
-      screen: "plan",
-      action: "Abrir treino",
-    },
-    {
-      title: "Sua alimentação",
-      description:
-        "Registre as refeições e acompanhe seu consumo ao longo do dia.",
-      icon: Apple,
-      screen: "nutrition",
-      action: "Registrar refeição",
-    },
-    {
-      title: "Suas metas",
-      description:
-        "Transforme intenções em pequenas ações que cabem na sua rotina.",
-      icon: Target,
-      screen: "goals",
-      action: "Definir metas",
-    },
-  ];
-  const [notif, setNotif] = useState(null);
-
+  const [plan, setPlan] = useState(null);
+  const [sessions, setSessions] = useState([]);
+  const [active, setActive] = useState(() => loadActiveSession(user?.uid));
   useEffect(() => {
-    const qNotif = query(
-      collection(db, "notifications"),
-      orderBy("createdAt", "desc"),
-      limit(1),
+    if (!user?.uid || !db) return;
+    Promise.all([
+      getDoc(doc(db, "planos", user.uid)),
+      getDocs(collection(db, "workoutSessions", user.uid, "sessions")),
+    ])
+      .then(([planSnap, sessionSnap]) => {
+        setPlan(planSnap.data()?.plan || null);
+        setSessions(
+          sessionSnap.docs
+            .map((item) => item.data())
+            .filter((item) => item.status === "completed"),
+        );
+        setActive(loadActiveSession(user.uid));
+      })
+      .catch(() => {});
+  }, [user?.uid]);
+  const today = DAYS[new Date().getDay()];
+  const workout = useMemo(() => {
+    const workouts = plan?.treinos || [];
+    const index = Math.min(
+      Math.max(DAYS.indexOf(today) - 1, 0),
+      Math.max(workouts.length - 1, 0),
     );
-
-    const unsub = onSnapshot(
-      qNotif,
-      (snap) => {
-        if (snap.empty) {
-          setNotif(null);
-        } else {
-          setNotif({ id: snap.docs[0].id, ...snap.docs[0].data() });
-        }
-      },
-      (error) => {
-        console.error("Erro ao carregar avisos:", error);
-      },
-    );
-
-    return () => unsub();
-  }, []);
-
-  const [streak, setStreak] = useState(
-    Number(localStorage.getItem("fitmind-streak") || 0),
-  );
-
-  useEffect(() => {
-    const atualizar = () => {
-      setStreak(Number(localStorage.getItem("fitmind-streak") || 0));
-    };
-
-    window.addEventListener("streakUpdate", atualizar);
-    window.addEventListener("storage", atualizar);
-
-    return () => {
-      window.removeEventListener("streakUpdate", atualizar);
-      window.removeEventListener("storage", atualizar);
-    };
-  }, []);
-
+    return workouts[index] || workouts[0];
+  }, [plan, today]);
+  const week = sessions.filter(
+    (session) => (session.completedAt || 0) >= Date.now() - 7 * 86400000,
+  ).length;
+  const planned = Math.max(1, plan?.treinos?.length || 0);
+  const streak = Number(localStorage.getItem("fitmind-streak") || 0);
   return (
-    <div className="space-y-8">
-      <PageHeader
-        title={`Olá, ${name.split(" ")[0]}.`}
-        description="Bom ter você por aqui. Reserve um momento para cuidar de você."
-      />
-      {notif && (
-        <div className="status-message">
-          <Bell size={18} className="text-fyzen-warm" />
-          <div>
-            <p className="font-medium text-slate-100">Aviso para você</p>
-            <p className="text-fyzen-muted mt-1">{notif.message}</p>
-          </div>
+    <div className="home-v2">
+      <header className="home-greeting">
+        <p>Pronto para o treino de hoje?</p>
+        <h1>Olá, {firstName(friendlyName)}.</h1>
+      </header>
+      <section className="today-card">
+        <div className="today-card-top">
+          <span>Treino de hoje</span>
+          <Dumbbell size={21} />
         </div>
-      )}
-      <section className="home-hero">
-        <div className="relative z-10">
-          <h2>O próximo passo é o de hoje.</h2>
-          <p>
-            Encontre seu ritmo. Seu treino, sua alimentação e suas metas estão
-            aqui.
-          </p>
-          <button
-            className="btn-primary"
-            onClick={() => onSelectScreen("plan")}
-          >
-            <Dumbbell size={17} /> Ir para meu treino
-          </button>
-        </div>
-        <div className="streak-stat">
-          <Flame className="text-fyzen-warm mb-2" size={24} />
-          <strong>{streak}</strong>
-          <div>
-            <span className="text-sm text-slate-100">
-              {streak === 1 ? "dia seguido" : "dias seguidos"}
-            </span>
-            <span className="block text-xs text-fyzen-muted mt-1">
-              de treino concluído
-            </span>
-          </div>
-        </div>
-        <div className="training-track" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-          <i />
-          <i />
-        </div>
+        {workout ? (
+          <>
+            <h2>{active?.name || workout.grupo}</h2>
+            <p>
+              {active
+                ? `${active.totalSets || 0} séries concluídas`
+                : `${workout.exercicios?.length || 0} exercícios · plano atual`}
+            </p>
+          </>
+        ) : (
+          <>
+            <h2>Seu plano começa aqui</h2>
+            <p>
+              Conte um pouco sobre sua rotina para montar o primeiro treino.
+            </p>
+          </>
+        )}
+        <button
+          className="btn-primary"
+          type="button"
+          onClick={() =>
+            workout || active
+              ? onStartWorkout?.(workout, today)
+              : onSelectScreen("plan")
+          }
+        >
+          {active ? <Play size={18} /> : <Dumbbell size={18} />}{" "}
+          {active
+            ? "Continuar treino"
+            : workout
+              ? "Iniciar treino"
+              : "Criar meu plano"}
+        </button>
       </section>
-      <section>
-        <h2 className="section-heading">Cuide da sua rotina</h2>
-        <div className="home-actions">
-          {passos.map(({ icon: Icon, ...passo }) => (
-            <button
-              className="action-card"
-              key={passo.screen}
-              onClick={() => onSelectScreen(passo.screen)}
-            >
-              <Icon size={23} className="text-fyzen-accent" />
-              <h3>{passo.title}</h3>
-              <p>{passo.description}</p>
-              <span className="action-link">
-                {passo.action}
-                <ArrowUpRight size={17} />
-              </span>
-            </button>
+      <section className="week-card">
+        <div>
+          <p>Esta semana</p>
+          <strong>
+            {week} <span>/ {planned} treinos</span>
+          </strong>
+        </div>
+        <div
+          className="week-dots"
+          aria-label={`${week} de ${planned} treinos concluídos`}
+        >
+          {Array.from({ length: Math.min(7, planned) }, (_, index) => (
+            <i key={index} className={index < week ? "done" : ""} />
           ))}
         </div>
+        <div className="streak-chip">
+          <Flame size={16} />
+          <span>{streak} dias</span>
+        </div>
       </section>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-fyzen-border pt-6">
-        <p className="text-sm text-fyzen-muted">
-          Cada treino conta. Veja o caminho que você já percorreu.
-        </p>
+      <section className="home-ai-card">
+        <Sparkles size={19} />
+        <div>
+          <p>Fyzen AI</p>
+          <strong>
+            {sessions.length
+              ? "Seu histórico está sendo usado para orientar as próximas sessões."
+              : "Registre sua primeira sessão para receber análises do seu progresso."}
+          </strong>
+        </div>
         <button
-          className="text-link shrink-0"
-          onClick={() => onSelectScreen("progress")}
+          type="button"
+          onClick={() => onSelectScreen("coach")}
+          aria-label="Abrir análise Fyzen"
         >
-          Ver meu progresso
+          <ArrowRight size={18} />
         </button>
-      </div>
+      </section>
+      <section className="home-recovery">
+        <div>
+          <div className="recovery-icon">
+            <Moon size={18} />
+          </div>
+          <div>
+            <p>Recuperação</p>
+            <strong>Ainda sem check-in</strong>
+            <span>Registre sono e energia para orientar seu treino.</span>
+          </div>
+        </div>
+        <button type="button" onClick={() => onSelectScreen("goals")}>
+          Registrar
+        </button>
+      </section>
+      <section className="home-progress-link">
+        <BrainCircuit size={18} />
+        <div>
+          <strong>Seu progresso, sem adivinhações.</strong>
+          <p>
+            Volume, séries e histórico aparecem quando você concluir as sessões.
+          </p>
+        </div>
+        <button type="button" onClick={() => onSelectScreen("progress")}>
+          Ver progresso
+        </button>
+      </section>
     </div>
   );
 }

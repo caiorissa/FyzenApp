@@ -38,7 +38,16 @@ for (const width of [390, 1440]) {
         name: width < 768 ? "Navegação mobile" : "Navegação principal",
         exact: true,
       });
-      await nav.getByRole("button", { name: label, exact: true }).click();
+      const target = nav.getByRole("button", { name: label, exact: true });
+      if (await target.count()) {
+        await target.click();
+      } else {
+        await nav.getByRole("button", { name: "Mais", exact: true }).click();
+        await page
+          .getByRole("dialog")
+          .getByRole("button", { name: label, exact: true })
+          .click();
+      }
       await expect(
         page.getByRole("heading", {
           name: {
@@ -69,3 +78,28 @@ for (const width of [390, 1440]) {
     }
   });
 }
+
+test("modo treino mantém acessibilidade em 390px", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.clock.setFixedTime(new Date("2026-09-07T15:00:00Z"));
+  await page.goto("/");
+  await page
+    .getByRole("navigation", { name: "Navegação mobile" })
+    .getByRole("button", { name: "Treino", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Iniciar modo treino" })
+    .first()
+    .click();
+  await page.getByRole("button", { name: "Iniciar treino" }).click();
+  await expect(page.getByRole("main", { name: "Modo treino" })).toBeVisible();
+  await expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth + 1,
+    ),
+  ).toBe(true);
+  const results = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+    .analyze();
+  expect(results.violations).toEqual([]);
+});

@@ -9,6 +9,10 @@ import {
   Activity,
   Flame,
 } from "lucide-react";
+import {
+  calculateWorkoutVolume,
+  formatVolume,
+} from "../lib/workout/analytics.js";
 
 import { db } from "../lib/firebaseConfig";
 import { subscribeAuth } from "../lib/subscribeAuth";
@@ -39,6 +43,7 @@ export default function ProgressScreen() {
   const [porSemana, setPorSemana] = useState([]);
   const [diasAtivos, setDiasAtivos] = useState(0);
   const [totalMes, setTotalMes] = useState(0);
+  const [sessionsV2, setSessionsV2] = useState([]);
 
   const processar = useCallback((lista) => {
     if (!lista || lista.length === 0) {
@@ -104,7 +109,19 @@ export default function ProgressScreen() {
         const q = query(ref, orderBy("timestamp", "asc"));
         const snap = await getDocs(q);
         const lista = snap.docs.map((d) => d.data());
+        let modern = [];
+        try {
+          const modernSnap = await getDocs(
+            collection(db, "workoutSessions", uid, "sessions"),
+          );
+          modern = modernSnap.docs
+            .map((item) => item.data())
+            .filter((item) => item.status === "completed");
+        } catch {
+          // Legacy history remains a complete fallback for existing accounts.
+        }
         setTreinos(lista);
+        setSessionsV2(modern);
         processar(lista);
       } catch (err) {
         console.error("Erro ao carregar progresso:", err);
@@ -136,6 +153,14 @@ export default function ProgressScreen() {
         porSemana.reduce((acc, d) => acc + d.total, 0) / porSemana.length
       ).toFixed(1)
     : 0;
+  const volumeTotal = sessionsV2.reduce(
+    (total, session) => total + calculateWorkoutVolume(session.exercises),
+    0,
+  );
+  const totalSets = sessionsV2.reduce(
+    (total, session) => total + (session.totalSets || 0),
+    0,
+  );
 
   if (loading) {
     return <LoadingState label="Carregando seu progresso…" />;
@@ -194,6 +219,38 @@ export default function ProgressScreen() {
           color="text-fyzen-accent"
         />
       </motion.div>
+
+      {sessionsV2.length > 0 && (
+        <motion.section {...fadeIn} className="progress-v2-grid">
+          <div className="progress-feature-card">
+            <span>Volume registrado</span>
+            <strong>{formatVolume(volumeTotal)}</strong>
+            <p>Soma de carga × repetições nas sessões detalhadas.</p>
+          </div>
+          <div className="progress-feature-card">
+            <span>Séries concluídas</span>
+            <strong>{totalSets}</strong>
+            <p>Dados do Modo Treino, salvos série a série.</p>
+          </div>
+          <div className="progress-feature-card">
+            <span>Consistência</span>
+            <strong>
+              {Math.round(
+                (sessionsV2.filter(
+                  (session) =>
+                    (session.completedAt || 0) > Date.now() - 28 * 86400000,
+                ).length /
+                  4) *
+                  100,
+              )}
+              %
+            </strong>
+            <p>
+              Indicador orientativo: sessões por semana nos últimos 28 dias.
+            </p>
+          </div>
+        </motion.section>
+      )}
 
       <motion.div
         {...fadeIn}

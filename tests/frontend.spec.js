@@ -198,22 +198,81 @@ test("plano: geração preserva campos; relatório fecha por Escape e retorna fo
   ).toBeFocused();
 });
 
-test("Pro: personalização recebe o nível correto e checkout volta para planos", async ({
+test("Ultra: falha da IA mantém geração de plano disponível", async ({
+  page,
+}) => {
+  await page.route("**/api/workout/week", (route) =>
+    route.abort("connectionrefused"),
+  );
+  await page.goto("/?scenario=empty&plan=ultra");
+  await navigate(page, "Treino");
+  await page.getByLabel("Sexo", { exact: true }).selectOption("feminino");
+  await page.getByLabel("Idade", { exact: false }).fill("29");
+  await page.getByLabel("Peso", { exact: false }).fill("65");
+  await page.getByLabel("Altura", { exact: false }).fill("168");
+  await page.getByLabel("Nível", { exact: true }).selectOption("iniciante");
+  await page
+    .getByLabel("Objetivo", { exact: true })
+    .selectOption("hipertrofia");
+  await page.getByLabel("Local do treino").selectOption("academia");
+  await page.getByRole("button", { name: "Gerar meu plano" }).click();
+  await expect(
+    page.getByText(
+      "Plano gerado e salvo. A Fyzen AI está indisponível no momento, então usamos o método padrão.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Ver resumo semanal" }),
+  ).toBeVisible();
+});
+
+test("Ultra: aceita o contrato de semana do backend publicado", async ({
+  page,
+}) => {
+  await page.route("**/api/workout/week", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        treinos: [
+          {
+            grupo: "Peito",
+            exercicios: ["Supino reto — 4x10", "Crucifixo — 3x12"],
+          },
+        ],
+        source: "ia",
+      }),
+    });
+  });
+  await page.goto("/?scenario=empty&plan=ultra");
+  await navigate(page, "Treino");
+  await page.getByLabel("Sexo", { exact: true }).selectOption("feminino");
+  await page.getByLabel("Idade", { exact: false }).fill("29");
+  await page.getByLabel("Peso", { exact: false }).fill("65");
+  await page.getByLabel("Altura", { exact: false }).fill("168");
+  await page.getByLabel("Nível", { exact: true }).selectOption("iniciante");
+  await page
+    .getByLabel("Objetivo", { exact: true })
+    .selectOption("hipertrofia");
+  await page.getByLabel("Local do treino").selectOption("academia");
+  await page.getByRole("button", { name: "Gerar meu plano" }).click();
+
+  await expect(
+    page.getByText("Fyzen AI está gerando seu plano..."),
+  ).toBeVisible();
+  await expect(page.getByText("Plano gerado e salvo!")).toBeVisible();
+  await expect(page.getByText("Supino reto — 4x10")).toBeVisible();
+});
+
+test("Pro: plano não exibe personalização de exercícios e checkout volta para planos", async ({
   page,
 }) => {
   await page.goto("/?plan=pro");
   await navigate(page, "Treino");
-  await page
-    .getByRole("button", { name: "Personalizar exercícios" })
-    .first()
-    .click();
-  await expect(page.getByRole("dialog")).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Gerar nova variação" }),
-  ).toBeEnabled();
-  await page.getByRole("button", { name: "Gerar nova variação" }).click();
-  await expect(page.getByText("Variação #1")).toBeVisible();
-  await page.keyboard.press("Escape");
+    page.getByRole("button", { name: "Personalizar exercícios" }),
+  ).toHaveCount(0);
   await navigate(page, "Seu plano");
   await page.getByRole("button", { name: "Escolher ULTRA" }).click();
   await expect(
@@ -283,6 +342,103 @@ test("checklist: conclusão registra uma vez e persiste ao trocar de tela", asyn
   ).toBe(1);
 });
 
+test("modo treino registra série, descansa e finaliza em uma sessão versionada", async ({
+  page,
+}) => {
+  await page.clock.setFixedTime(new Date("2026-09-07T15:00:00Z"));
+  await page.goto("/");
+  await navigate(page, "Treino");
+  await page
+    .getByRole("button", { name: "Iniciar modo treino" })
+    .first()
+    .click();
+  await page.getByRole("button", { name: "Iniciar treino" }).click();
+  await expect(page.getByRole("main", { name: "Modo treino" })).toBeVisible();
+  for (let exercise = 0; exercise < 3; exercise++) {
+    for (let set = 1; set <= 3; set++) {
+      await page
+        .locator('input[inputmode="decimal"]:not(:disabled)')
+        .fill("70");
+      await page
+        .locator('input[inputmode="numeric"]:not(:disabled)')
+        .fill("10");
+      await page.getByRole("button", { name: `Concluir série ${set}` }).click();
+      if (exercise === 0 && set === 1)
+        await expect(page.getByText("Descanso", { exact: true })).toBeVisible();
+      if (!(exercise === 2 && set === 3))
+        await page.getByRole("button", { name: "Pular" }).click();
+    }
+  }
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          Object.keys(
+            JSON.parse(
+              localStorage.getItem("fyzen:workout-session:qa-user") || "{}",
+            ),
+          ).length,
+      ),
+    )
+    .toBeGreaterThan(0);
+  await page.getByRole("button", { name: "Finalizar treino" }).click();
+  await expect(
+    page.getByText("Treino concluído", { exact: true }),
+  ).toBeVisible();
+  await expect
+    .poll(async () =>
+      page.evaluate(
+        () =>
+          Object.keys(
+            JSON.parse(sessionStorage.getItem("qa-documents") || "{}"),
+          ).filter((key) => key.startsWith("workoutSessions/qa-user/sessions/"))
+            .length,
+      ),
+    )
+    .toBe(1);
+});
+
+test("modo treino retoma a série registrada após refresh", async ({ page }) => {
+  await page.clock.setFixedTime(new Date("2026-09-07T15:00:00Z"));
+  await page.goto("/");
+  await navigate(page, "Treino");
+  await page
+    .getByRole("button", { name: "Iniciar modo treino" })
+    .first()
+    .click();
+  await page.getByRole("button", { name: "Iniciar treino" }).click();
+  await page.getByLabel("Carga da série 1 em kg").fill("70");
+  await page.getByLabel("Repetições da série 1").fill("10");
+  await page.getByRole("button", { name: "Concluir série 1" }).click();
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "Continuar treino" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Continuar treino" }).click();
+  await expect(page.getByRole("main", { name: "Modo treino" })).toBeVisible();
+  await expect(page.getByLabel("Carga da série 1 em kg")).toHaveValue("70");
+});
+
+for (const width of [320, 360, 390, 430]) {
+  test(`modo treino não cria overflow em ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.clock.setFixedTime(new Date("2026-09-07T15:00:00Z"));
+    await page.goto("/");
+    await navigate(page, "Treino");
+    await page
+      .getByRole("button", { name: "Iniciar modo treino" })
+      .first()
+      .click();
+    await page.getByRole("button", { name: "Iniciar treino" }).click();
+    await expect(page.getByRole("main", { name: "Modo treino" })).toBeVisible();
+    await noOverflow(page);
+    await page.screenshot({
+      path: `docs/qa/Modo-treino-${width}.png`,
+      fullPage: false,
+    });
+  });
+}
+
 test("pagamento: contrato da requisição e erro com opção de tentar novamente", async ({
   page,
 }) => {
@@ -326,6 +482,38 @@ test("painel administrativo permanece acessível somente ao administrador", asyn
   await expect(page.getByLabel("Mensagem do aviso")).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await noOverflow(page);
+});
+
+test("administrador concede acesso Pro ou Ultra pelo e-mail", async ({
+  page,
+}) => {
+  await page.goto("/?scenario=admin");
+  await navigate(page, "Admin");
+
+  await page
+    .getByLabel("E-mail do usuário", { exact: true })
+    .fill("cliente@example.test");
+  await page.getByLabel("Plano", { exact: true }).selectOption("ultra");
+  await page.getByLabel("Validade", { exact: true }).selectOption("90");
+  await page.getByRole("button", { name: "Conceder ULTRA" }).click();
+
+  await expect(page.getByRole("status")).toContainText(
+    "ULTRA liberado por 90 dias.",
+  );
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const documentos = JSON.parse(
+          sessionStorage.getItem("qa-documents") || "{}",
+        );
+        return documentos["assinaturas/cliente-01"];
+      }),
+    )
+    .toMatchObject({
+      plano: "ultra",
+      ativo: true,
+      metodo: "admin_manual",
+    });
 });
 
 test("Ultra: regenerar dia e semana salva os novos exercícios", async ({

@@ -25,6 +25,8 @@ import {
   doc,
   getDoc,
   setDoc,
+  query,
+  where,
 } from "firebase/firestore";
 
 export default function AdminScreen({ user, isAdmin }) {
@@ -38,6 +40,13 @@ export default function AdminScreen({ user, isAdmin }) {
   const [sendingNotif, setSendingNotif] = useState(false);
   const [notifMsg, setNotifMsg] = useState("");
   const [logs, setLogs] = useState([]);
+  const [accessForm, setAccessForm] = useState({
+    email: "",
+    plano: "pro",
+    dias: "30",
+  });
+  const [grantingAccess, setGrantingAccess] = useState(false);
+  const [accessMessage, setAccessMessage] = useState("");
 
   async function corrigirAssinaturas() {
     if (
@@ -97,6 +106,67 @@ export default function AdminScreen({ user, isAdmin }) {
         ...prev,
         "❌ Erro ao corrigir assinaturas (veja o console).",
       ]);
+    }
+  }
+
+  async function concederAcesso(event) {
+    event.preventDefault();
+    const email = accessForm.email.trim().toLowerCase();
+    const dias = Number(accessForm.dias);
+
+    if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+      setAccessMessage("Informe um e-mail válido.");
+      return;
+    }
+    if (!["pro", "ultra"].includes(accessForm.plano)) {
+      setAccessMessage("Escolha Pro ou Ultra.");
+      return;
+    }
+    if (!Number.isInteger(dias) || dias < 1 || dias > 3650) {
+      setAccessMessage("Informe uma validade entre 1 e 3.650 dias.");
+      return;
+    }
+
+    setGrantingAccess(true);
+    setAccessMessage("");
+    try {
+      const usersSnap = await getDocs(
+        query(collection(db, "users"), where("email", "==", email)),
+      );
+      const usuario = usersSnap.docs[0];
+      if (!usuario) {
+        setAccessMessage("Nenhum usuário foi encontrado com este e-mail.");
+        return;
+      }
+
+      const targetUid = usuario.id;
+      const ref = doc(db, "assinaturas", targetUid);
+      const atual = await getDoc(ref);
+      const agora = Date.now();
+      await setDoc(
+        ref,
+        {
+          plano: accessForm.plano,
+          ativo: true,
+          metodo: "admin_manual",
+          criadoEm: atual.exists() ? atual.data().criadoEm || agora : agora,
+          concedidoEm: agora,
+          concedidoPor: user?.uid || "admin",
+          renovaEm: agora + dias * 86400000,
+          canceladoEm: null,
+          ultimaVerificacao: agora,
+        },
+        { merge: true },
+      );
+      setAccessMessage(
+        `${accessForm.plano.toUpperCase()} liberado por ${dias} dia${dias === 1 ? "" : "s"}.`,
+      );
+      setAccessForm((current) => ({ ...current, email: "" }));
+    } catch (err) {
+      console.error("Erro ao conceder plano:", err);
+      setAccessMessage("Não foi possível conceder o acesso. Tente novamente.");
+    } finally {
+      setGrantingAccess(false);
     }
   }
 
@@ -542,6 +612,100 @@ export default function AdminScreen({ user, isAdmin }) {
           </Card>
         </>
       )}
+
+      <Card
+        title="Conceder acesso Premium"
+        className="bg-slate-900/80"
+        icon={Users}
+      >
+        <form onSubmit={concederAcesso} className="space-y-4">
+          <p className="text-sm text-fyzen-muted leading-relaxed">
+            Libere Pro ou Ultra manualmente usando o e-mail cadastrado do
+            usuário.
+          </p>
+          <div className="grid sm:grid-cols-[minmax(0,1fr)_130px_130px] gap-3">
+            <label>
+              <span className="field-label">E-mail do usuário</span>
+              <input
+                className="input-style"
+                type="email"
+                inputMode="email"
+                value={accessForm.email}
+                onChange={(event) =>
+                  setAccessForm((current) => ({
+                    ...current,
+                    email: event.target.value,
+                  }))
+                }
+                placeholder="nome@exemplo.com"
+                autoComplete="email"
+                required
+              />
+            </label>
+            <label>
+              <span className="field-label">Plano</span>
+              <select
+                aria-label="Plano"
+                value={accessForm.plano}
+                onChange={(event) =>
+                  setAccessForm((current) => ({
+                    ...current,
+                    plano: event.target.value,
+                  }))
+                }
+              >
+                <option value="pro">Pro</option>
+                <option value="ultra">Ultra</option>
+              </select>
+            </label>
+            <label>
+              <span className="field-label">Validade</span>
+              <select
+                aria-label="Validade"
+                value={accessForm.dias}
+                onChange={(event) =>
+                  setAccessForm((current) => ({
+                    ...current,
+                    dias: event.target.value,
+                  }))
+                }
+              >
+                <option value="7">7 dias</option>
+                <option value="30">30 dias</option>
+                <option value="90">90 dias</option>
+                <option value="365">1 ano</option>
+              </select>
+            </label>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="submit"
+              className="btn-primary"
+              disabled={grantingAccess || !accessForm.email.trim()}
+            >
+              {grantingAccess
+                ? "Concedendo…"
+                : `Conceder ${accessForm.plano.toUpperCase()}`}
+            </button>
+            {accessMessage && (
+              <p
+                role={
+                  /não foi|informe|nenhum|escolha/i.test(accessMessage)
+                    ? "alert"
+                    : "status"
+                }
+                className={
+                  /não foi|informe|nenhum|escolha/i.test(accessMessage)
+                    ? "text-sm text-red-300"
+                    : "text-sm text-fyzen-accent"
+                }
+              >
+                {accessMessage}
+              </p>
+            )}
+          </div>
+        </form>
+      </Card>
 
       <Card
         title="Usuários Premium (PRO e ULTRA)"

@@ -1,0 +1,160 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function logado() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return logado() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return logado() &&
+             (request.auth.token.get('admin', false) == true ||
+              request.auth.token.get('email', '') == 'caiorissa@gmail.com' ||
+              request.auth.token.get('email', '') == 'caiorissasilveiraa@gmail.com');
+    }
+
+    function renovacaoValida(assinatura) {
+      return (assinatura.get('renovaEm', 0) is int &&
+              assinatura.get('renovaEm', 0) > request.time.toMillis()) ||
+             (assinatura.get('renovaEm', 0) is timestamp &&
+              assinatura.get('renovaEm', 0) > request.time);
+    }
+
+    function assinaturaAtivaComPlano(planosPermitidos) {
+      return logado() &&
+             exists(/databases/$(database)/documents/assinaturas/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/assinaturas/$(request.auth.uid)).data.get('ativo', false) == true &&
+             renovacaoValida(get(/databases/$(database)/documents/assinaturas/$(request.auth.uid)).data) &&
+             get(/databases/$(database)/documents/assinaturas/$(request.auth.uid)).data.get('plano', 'free') in planosPermitidos;
+    }
+
+    function isPro() {
+      return assinaturaAtivaComPlano(['pro', 'ultra']);
+    }
+
+    function isUltra() {
+      return assinaturaAtivaComPlano(['ultra']);
+    }
+
+    function isCancellationUpdate(uid) {
+      return isOwner(uid) &&
+             resource.data.get('ativo', false) == true &&
+             request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['ativo', 'canceladoEm']) &&
+             request.resource.data.ativo == false &&
+             request.resource.data.canceladoEm is int &&
+             request.resource.data.canceladoEm >= request.time.toMillis() - 120000 &&
+             request.resource.data.canceladoEm <= request.time.toMillis() + 120000;
+    }
+
+    function ownsExistingDocument() {
+      return logado() && resource.data.get('ownerUid', '') == request.auth.uid;
+    }
+
+    function ownsIncomingDocument() {
+      return logado() && request.resource.data.get('ownerUid', '') == request.auth.uid;
+    }
+
+    match /users/{uid} {
+      allow get: if isOwner(uid) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(uid) && !request.resource.data.keys().hasAny(['plan', 'subscriptionStatus', 'stripeCustomerId']);
+      allow update: if isOwner(uid) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['plan', 'subscriptionStatus', 'stripeCustomerId']);
+    }
+
+    match /assinaturas/{uid} {
+      allow get: if isOwner(uid) || isAdmin();
+      allow list: if isAdmin();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || isCancellationUpdate(uid);
+    }
+
+    match /planos/{uid} {
+      allow get: if isOwner(uid) || isAdmin();
+      allow list: if isAdmin();
+      allow create, update, delete: if isOwner(uid);
+    }
+
+    match /progresso/{uid} {
+      allow get: if isOwner(uid) || isAdmin();
+      allow list: if isAdmin();
+      allow create, update, delete: if isOwner(uid);
+    }
+
+    match /metas/{uid} {
+      allow get: if isOwner(uid) || isAdmin();
+      allow list: if isAdmin();
+      allow create, update, delete: if isOwner(uid);
+    }
+
+    match /historicoTreino/{uid} {
+      allow get: if isOwner(uid) || isAdmin();
+      allow list: if isAdmin();
+      allow create, update, delete: if isOwner(uid);
+
+      match /registros/{docId} {
+        allow read: if isOwner(uid) || isAdmin();
+        allow create, update, delete: if isOwner(uid);
+      }
+    }
+
+    // Fyzen 2.0: sessionId is client-generated and reused, so writes are idempotent.
+    // userId is checked against the path to prevent cross-account document injection.
+    match /workoutSessions/{uid}/sessions/{sessionId} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid) && request.resource.data.userId == uid;
+      allow update: if isOwner(uid) &&
+                    resource.data.userId == uid &&
+                    request.resource.data.userId == uid;
+      allow delete: if isOwner(uid);
+    }
+
+    match /analyticsSemana/{uid} {
+      allow get: if isAdmin() || (isOwner(uid) && isUltra());
+      allow list: if isAdmin();
+      allow create: if isOwner(uid) && isUltra() && request.resource.data.get('uid', '') == uid;
+      allow update: if isOwner(uid) && isUltra() && resource.data.get('uid', '') == uid && request.resource.data.get('uid', '') == uid;
+      allow delete: if isOwner(uid) && isUltra() && resource.data.get('uid', '') == uid;
+    }
+
+    match /planosCollection/{docId} {
+      allow get: if isAdmin() || (isPro() && ownsExistingDocument());
+      allow list: if isAdmin();
+      allow create: if isPro() && ownsIncomingDocument();
+      allow update: if isPro() && ownsExistingDocument() && ownsIncomingDocument();
+      allow delete: if isPro() && ownsExistingDocument();
+    }
+
+    match /planHistory/{docId} {
+      allow get: if isAdmin() || (isPro() && ownsExistingDocument());
+      allow list: if isAdmin();
+      allow create: if isPro() && ownsIncomingDocument();
+      allow update: if isPro() && ownsExistingDocument() && ownsIncomingDocument();
+      allow delete: if isPro() && ownsExistingDocument();
+    }
+
+    match /nutrition/{uid} {
+      allow get: if isOwner(uid) || isAdmin();
+      allow list: if isAdmin();
+      allow create, update, delete: if isOwner(uid);
+
+      match /days/{diaId} {
+        allow read: if isOwner(uid) || isAdmin();
+        allow create, update, delete: if isOwner(uid);
+      }
+    }
+
+    match /admin/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /notifications/{docId} {
+      allow read: if logado();
+      allow write: if isAdmin();
+    }
+  }
+}
