@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { atualizarStreak } from "../lib/useStreak.js";
 import confetti from "canvas-confetti";
 import { registrarTreinoConcluido } from "../lib/treinoService";
+import ExerciseVideoLink from "./workout/ExerciseVideoLink.jsx";
 
 const STORAGE_KEY = "fyzen-checklist-v1";
 
@@ -161,13 +162,16 @@ export default function WorkoutChecklist({
                 {completo && "✓"}
               </button>
 
-              <span
-                className={`leading-relaxed text-sm ${
-                  completo ? "line-through text-slate-500" : "text-slate-200"
-                }`}
-              >
-                {item}
-              </span>
+              <div className="min-w-0 space-y-2">
+                <span
+                  className={`block leading-relaxed text-sm ${
+                    completo ? "line-through text-slate-500" : "text-slate-200"
+                  }`}
+                >
+                  {item}
+                </span>
+                <ExerciseVideoLink exerciseName={item} compact />
+              </div>
             </li>
           );
         })}

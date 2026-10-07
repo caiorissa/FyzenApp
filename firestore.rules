@@ -17,40 +17,6 @@ service cloud.firestore {
               request.auth.token.get('email', '') == 'caiorissasilveiraa@gmail.com');
     }
 
-    function renovacaoValida(assinatura) {
-      return (assinatura.get('renovaEm', 0) is int &&
-              assinatura.get('renovaEm', 0) > request.time.toMillis()) ||
-             (assinatura.get('renovaEm', 0) is timestamp &&
-              assinatura.get('renovaEm', 0) > request.time);
-    }
-
-    function assinaturaAtivaComPlano(planosPermitidos) {
-      return logado() &&
-             exists(/databases/$(database)/documents/assinaturas/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/assinaturas/$(request.auth.uid)).data.get('ativo', false) == true &&
-             renovacaoValida(get(/databases/$(database)/documents/assinaturas/$(request.auth.uid)).data) &&
-             get(/databases/$(database)/documents/assinaturas/$(request.auth.uid)).data.get('plano', 'free') in planosPermitidos;
-    }
-
-    function isPro() {
-      return assinaturaAtivaComPlano(['pro', 'ultra']);
-    }
-
-    function isUltra() {
-      return assinaturaAtivaComPlano(['ultra']);
-    }
-
-    function isCancellationUpdate(uid) {
-      return isOwner(uid) &&
-             resource.data.get('ativo', false) == true &&
-             request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(['ativo', 'canceladoEm']) &&
-             request.resource.data.ativo == false &&
-             request.resource.data.canceladoEm is int &&
-             request.resource.data.canceladoEm >= request.time.toMillis() - 120000 &&
-             request.resource.data.canceladoEm <= request.time.toMillis() + 120000;
-    }
-
     function ownsExistingDocument() {
       return logado() && resource.data.get('ownerUid', '') == request.auth.uid;
     }
@@ -62,15 +28,7 @@ service cloud.firestore {
     match /users/{uid} {
       allow get: if isOwner(uid) || isAdmin();
       allow list: if isAdmin();
-      allow create: if isOwner(uid) && !request.resource.data.keys().hasAny(['plan', 'subscriptionStatus', 'stripeCustomerId']);
-      allow update: if isOwner(uid) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['plan', 'subscriptionStatus', 'stripeCustomerId']);
-    }
-
-    match /assinaturas/{uid} {
-      allow get: if isOwner(uid) || isAdmin();
-      allow list: if isAdmin();
-      allow create, delete: if isAdmin();
-      allow update: if isAdmin() || isCancellationUpdate(uid);
+      allow create, update: if isOwner(uid);
     }
 
     match /planos/{uid} {
@@ -114,27 +72,27 @@ service cloud.firestore {
     }
 
     match /analyticsSemana/{uid} {
-      allow get: if isAdmin() || (isOwner(uid) && isUltra());
+      allow get: if isAdmin() || isOwner(uid);
       allow list: if isAdmin();
-      allow create: if isOwner(uid) && isUltra() && request.resource.data.get('uid', '') == uid;
-      allow update: if isOwner(uid) && isUltra() && resource.data.get('uid', '') == uid && request.resource.data.get('uid', '') == uid;
-      allow delete: if isOwner(uid) && isUltra() && resource.data.get('uid', '') == uid;
+      allow create: if isOwner(uid) && request.resource.data.get('uid', '') == uid;
+      allow update: if isOwner(uid) && resource.data.get('uid', '') == uid && request.resource.data.get('uid', '') == uid;
+      allow delete: if isOwner(uid) && resource.data.get('uid', '') == uid;
     }
 
     match /planosCollection/{docId} {
-      allow get: if isAdmin() || (isPro() && ownsExistingDocument());
+      allow get: if isAdmin() || (logado() && ownsExistingDocument());
       allow list: if isAdmin();
-      allow create: if isPro() && ownsIncomingDocument();
-      allow update: if isPro() && ownsExistingDocument() && ownsIncomingDocument();
-      allow delete: if isPro() && ownsExistingDocument();
+      allow create: if logado() && ownsIncomingDocument();
+      allow update: if logado() && ownsExistingDocument() && ownsIncomingDocument();
+      allow delete: if logado() && ownsExistingDocument();
     }
 
     match /planHistory/{docId} {
-      allow get: if isAdmin() || (isPro() && ownsExistingDocument());
+      allow get: if isAdmin() || (logado() && ownsExistingDocument());
       allow list: if isAdmin();
-      allow create: if isPro() && ownsIncomingDocument();
-      allow update: if isPro() && ownsExistingDocument() && ownsIncomingDocument();
-      allow delete: if isPro() && ownsExistingDocument();
+      allow create: if logado() && ownsIncomingDocument();
+      allow update: if logado() && ownsExistingDocument() && ownsIncomingDocument();
+      allow delete: if logado() && ownsExistingDocument();
     }
 
     match /nutrition/{uid} {

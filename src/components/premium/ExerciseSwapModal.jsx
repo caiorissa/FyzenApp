@@ -2,19 +2,15 @@ import Dialog from "../Dialog.jsx";
 import React, { useState, useMemo } from "react";
 import { X, Search, Dumbbell, Wand2 } from "lucide-react";
 import { getAlternatives } from "@/lib/premium/exerciseAlternatives";
-import PremiumLock from "./PremiumLock";
-import { temAcesso } from "@/lib/planCheck";
+import ExerciseVideoLink from "../workout/ExerciseVideoLink.jsx";
 
 export default function ExerciseSwapModal({
   open,
   onClose,
   exercicioOriginal,
   onSwap,
-  userPlan = "free",
 }) {
   const [search, setSearch] = useState("");
-
-  const hasPro = temAcesso(userPlan, "pro");
 
   const alternativas = useMemo(() => {
     const base = getAlternatives(exercicioOriginal) || [];
@@ -45,20 +41,11 @@ export default function ExerciseSwapModal({
           </p>
           <p className="text-fyzen-accent font-semibold">{exercicioOriginal}</p>
         </div>
-
-        {!hasPro && (
-          <PremiumLock
-            label="Troca de exercício liberada apenas para assinantes PRO"
-            plan="pro"
-          />
-        )}
-
-        <div className={`${!hasPro && "pointer-events-none opacity-50"}`}>
+        <div>
           <div className="relative">
             <input
               aria-label="Buscar exercício"
               name="exerciseSearch"
-              disabled={!hasPro}
               type="text"
               placeholder="Buscar exercício..."
               value={search}
@@ -75,15 +62,16 @@ export default function ExerciseSwapModal({
               </p>
             ) : (
               alternativas.map((alt, index) => (
-                <button
-                  key={index}
-                  disabled={!hasPro}
-                  onClick={() => onSwap(alt)}
-                  className="w-full bg-slate-800/60 hover:bg-slate-700/60 transition px-4 py-2 rounded-xl text-left text-slate-200 flex items-center gap-2"
-                >
-                  <Wand2 className="w-4 h-4 text-fyzen-accent" />
-                  {alt}
-                </button>
+                <div key={index} className="flex items-center gap-2">
+                  <button
+                    onClick={() => onSwap(alt)}
+                    className="min-h-11 flex-1 bg-slate-800/60 hover:bg-slate-700/60 transition px-4 py-2 rounded-xl text-left text-slate-200 flex items-center gap-2"
+                  >
+                    <Wand2 className="w-4 h-4 text-fyzen-accent" />
+                    {alt}
+                  </button>
+                  <ExerciseVideoLink exerciseName={alt} compact />
+                </div>
               ))
             )}
           </div>

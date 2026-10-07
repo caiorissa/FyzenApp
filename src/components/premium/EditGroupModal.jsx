@@ -1,9 +1,8 @@
 import Dialog from "../Dialog.jsx";
 import React, { useState } from "react";
 import { X, RefreshCw, Wand2 } from "lucide-react";
-import PremiumLock from "./PremiumLock";
-import { temAcesso } from "@/lib/planCheck";
 import { gerarNovaVariacaoDoGrupo } from "@/lib/premium/planUtils";
+import ExerciseVideoLink from "../workout/ExerciseVideoLink.jsx";
 
 export default function EditGroupModal({
   open,
@@ -13,15 +12,11 @@ export default function EditGroupModal({
   objetivo,
   local,
   form,
-  userPlan = "free",
 }) {
   const [loading, setLoading] = useState(false);
   const [novasVariacoes, setNovasVariacoes] = useState([]);
 
   if (!open) return null;
-
-  const hasPro = temAcesso(userPlan, "pro");
-  const hasUltra = temAcesso(userPlan, "ultra");
 
   const gerarVariacao = async () => {
     try {
@@ -61,36 +56,31 @@ export default function EditGroupModal({
             {grupoOriginal.grupo}
           </p>
         </div>
-
-        {!hasPro && (
-          <PremiumLock
-            label="Troca de grupos é exclusiva do plano PRO"
-            plan="pro"
-          />
-        )}
-
-        <div className={`${!hasPro && "opacity-40 pointer-events-none"}`}>
+        <div>
           <div className="bg-slate-800/50 border border-white/10 rounded-xl p-4">
             <p className="text-slate-300 font-medium mb-2 text-sm">
               Treino atual:
             </p>
             <ul className="text-slate-400 text-sm list-disc ml-5 space-y-1">
               {grupoOriginal.exercicios.map((ex, idx) => (
-                <li key={idx}>{ex}</li>
+                <li key={idx} className="space-y-1">
+                  <span>{ex}</span>
+                  <ExerciseVideoLink exerciseName={ex} compact />
+                </li>
               ))}
             </ul>
           </div>
 
           <button
             onClick={gerarVariacao}
-            disabled={loading || !hasPro}
+            disabled={loading}
             className="mt-4 px-4 py-2 w-full rounded-xl bg-fyzen-accent text-black font-semibold shadow hover:brightness-110 flex items-center gap-2"
           >
             <RefreshCw className={`w-4 h-4 ${loading && "animate-spin"}`} />
             {loading ? "Gerando..." : "Gerar nova variação"}
           </button>
 
-          {hasPro && novasVariacoes.length > 0 && (
+          {novasVariacoes.length > 0 && (
             <div className="mt-4 space-y-3 max-h-64 overflow-y-auto pr-2 custom-scroll">
               {novasVariacoes.map((variante, index) => (
                 <div
@@ -102,7 +92,10 @@ export default function EditGroupModal({
                   </p>
                   <ul className="text-slate-300 text-sm list-disc ml-5 space-y-1 mb-3">
                     {variante.exercicios.map((ex, i) => (
-                      <li key={i}>{ex}</li>
+                      <li key={i} className="space-y-1">
+                        <span>{ex}</span>
+                        <ExerciseVideoLink exerciseName={ex} compact />
+                      </li>
                     ))}
                   </ul>
 
@@ -115,14 +108,6 @@ export default function EditGroupModal({
                 </div>
               ))}
             </div>
-          )}
-
-          {!hasUltra && hasPro && (
-            <p className="text-center text-xs text-slate-500 mt-3">
-              No plano{" "}
-              <span className="text-amber-300 font-semibold">ULTRA</span>, você
-              pode gerar variações ilimitadas.
-            </p>
           )}
         </div>
 

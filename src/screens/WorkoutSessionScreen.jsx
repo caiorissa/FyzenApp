@@ -12,6 +12,7 @@ import { detectPRs } from "../lib/workout/analytics.js";
 import RestTimer from "../components/workout/RestTimer.jsx";
 import SetRow from "../components/workout/SetRow.jsx";
 import WorkoutSummary from "../components/workout/WorkoutSummary.jsx";
+import ExerciseVideoLink from "../components/workout/ExerciseVideoLink.jsx";
 
 function useWakeLock(enabled) {
   const lock = useRef(null);
@@ -212,6 +213,7 @@ export default function WorkoutSessionScreen({
             <p className="exercise-eyebrow">Exercício atual</p>
             <h1>{exercise.name}</h1>
             <span>{exercise.muscleGroup}</span>
+            <ExerciseVideoLink exerciseName={exercise.name} compact />
           </div>
           <button
             type="button"

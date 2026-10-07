@@ -9,6 +9,13 @@
 
 Os endpoints continuam opcionais: se a geração falhar, o plano determinístico existente é usado.
 
+## Exercícios principais e regeneração diária
+
+- A IA recebe o catálogo fechado de exercícios de `docs/EXERCISE-VIDEO-CATALOG.md`, filtrado pelo local do treino, e pode selecionar no máximo três por grupo.
+- A resposta é filtrada no cliente para aceitar apenas exercícios do catálogo e compatíveis com o grupo muscular e o local escolhidos.
+- Na regeneração de um dia, os grupos e a ordem atuais são enviados como fixos. O cliente mantém os nomes desses grupos e rejeita a resposta se ela trocar o foco muscular do dia.
+- O gerador determinístico também escolhe somente exercícios principais do catálogo.
+
 ## Coach e adaptação
 
 O coach atual constrói uma leitura local a partir de sessões concluídas, séries, carga, repetições e volume. Isso oferece uma resposta útil sem inventar um endpoint de chat nem expor uma chave de modelo no frontend. Um backend futuro pode receber um resumo mínimo criado por `buildFitnessContext(profile, plan, recentSessions, trends, recovery)`; nunca os documentos brutos completos por padrão.

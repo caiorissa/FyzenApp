@@ -6,7 +6,7 @@ Fyzen 2.0 é aditivo. Nenhuma coleção existente foi removida ou renomeada.
 
 - `planos/{uid}`: perfil, análise, plano semanal e nutrição.
 - `historicoTreino/{uid}/registros/{id}`: histórico usado pelas telas antigas.
-- `metas/{uid}`, `nutrition/{uid}/days/{yyyy-mm-dd}`, `progresso/{uid}` e `assinaturas/{uid}`.
+- `metas/{uid}`, `nutrition/{uid}/days/{yyyy-mm-dd}` e `progresso/{uid}`.
 
 ## Sessões detalhadas
 

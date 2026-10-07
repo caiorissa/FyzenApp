@@ -3,7 +3,7 @@ import base from "./vite.config.js";
 import { fileURLToPath } from "node:url";
 const fixture = (name) =>
   fileURLToPath(new URL(`./tests/fixtures/${name}.js`, import.meta.url));
-// Only this separate test server replaces services. Production always uses Firebase/Stripe.
+// Only this separate test server replaces services. Production uses Firebase.
 export default mergeConfig(
   base,
   defineConfig({
@@ -13,6 +13,10 @@ export default mergeConfig(
     },
     resolve: {
       alias: [
+        {
+          find: /^@\/lib\/workout\/exerciseVideos\.js$/,
+          replacement: fixture("exercise-videos"),
+        },
         {
           find: /.*\/firebaseConfig(?:\.js)?$/,
           replacement: fixture("firebase-config"),

@@ -5,6 +5,12 @@ import {
   getProgressionSuggestion,
 } from "../src/lib/workout/analytics.js";
 import { parseLegacyExercise } from "../src/lib/workout/adapters.js";
+import { limitToMainExercises } from "../src/lib/workout/mainExercises.js";
+import {
+  EXERCISE_VIDEO_LINKS,
+  getYouTubeEmbedUrl,
+} from "../src/lib/workout/exerciseVideos.js";
+import { MAIN_EXERCISE_CATALOG } from "../src/lib/workout/mainExercises.js";
 
 test("analytics de treino calcula apenas dados válidos", () => {
   expect(
@@ -45,4 +51,65 @@ test("progressão exige duas sessões no topo da faixa", () => {
     from: 70,
     to: 72.5,
   });
+});
+
+test("catálogo recusa exercícios inventados e limita por grupo e local", () => {
+  expect(
+    limitToMainExercises(
+      [
+        {
+          grupo: "Peito e tríceps",
+          exercicios: [
+            "Supino reto — 4x10",
+            "Tríceps corda — 3x12",
+            "Exercício inventado — 3x8",
+            "Supino inclinado — 3x10",
+          ],
+        },
+      ],
+      { local: "academia", exerciciosPorGrupo: "2" },
+    ),
+  ).toEqual([
+    {
+      grupo: "Peito e tríceps",
+      exercicios: ["Supino reto — 4x10", "Tríceps corda — 3x12"],
+    },
+  ]);
+
+  expect(
+    limitToMainExercises(
+      [{ grupo: "Pernas", exercicios: ["Cadeira extensora — 3x12"] }],
+      { local: "casa" },
+    ),
+  ).toBeNull();
+  expect(
+    limitToMainExercises(
+      [{ grupo: "Pernas", exercicios: ["Movimento desconhecido — 3x12"] }],
+      { local: "academia" },
+    ),
+  ).toBeNull();
+});
+
+test("links do YouTube são convertidos em embeds e URLs externas são recusadas", () => {
+  expect(
+    getYouTubeEmbedUrl("https://www.youtube.com/watch?v=M7lc1UVf-VE"),
+  ).toBe("https://www.youtube-nocookie.com/embed/M7lc1UVf-VE?playsinline=1");
+  expect(getYouTubeEmbedUrl("https://youtu.be/M7lc1UVf-VE")).toBe(
+    "https://www.youtube-nocookie.com/embed/M7lc1UVf-VE?playsinline=1",
+  );
+  expect(getYouTubeEmbedUrl("https://example.com/watch?v=M7lc1UVf-VE")).toBe(
+    "",
+  );
+  expect(
+    getYouTubeEmbedUrl("https://youtube.com/results?search_query=supino"),
+  ).toBe("");
+});
+
+test("lista de links tem uma entrada vazia para cada exercício do catálogo", () => {
+  expect(Object.keys(EXERCISE_VIDEO_LINKS)).toHaveLength(
+    MAIN_EXERCISE_CATALOG.length,
+  );
+  for (const { name } of MAIN_EXERCISE_CATALOG) {
+    expect(EXERCISE_VIDEO_LINKS).toHaveProperty(name, "");
+  }
 });

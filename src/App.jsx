@@ -2,7 +2,6 @@ import React, { useEffect, useState, lazy, Suspense } from "react";
 import { signOut } from "firebase/auth";
 import { auth, firebaseConfigError } from "./lib/firebaseConfig";
 import { subscribeAuth } from "./lib/subscribeAuth";
-import { withTimeout } from "./lib/withTimeout";
 
 const UltraDashboardProtected = lazy(
   () => import("./screens/UltraDashboard.jsx"),
@@ -23,15 +22,11 @@ import { LoadingState } from "./components/ScreenState.jsx";
 import Brand from "./components/Brand.jsx";
 import Dialog from "./components/Dialog.jsx";
 import Navbar from "./components/Navbar.jsx";
-const CheckoutProPage = lazy(() => import("./screens/CheckoutProPage.jsx"));
-const CheckoutUltraPage = lazy(() => import("./screens/CheckoutUltraPage.jsx"));
-const BillingScreen = lazy(() => import("./screens/BillingScreen.jsx"));
 const WorkoutSessionScreen = lazy(
   () => import("./screens/WorkoutSessionScreen.jsx"),
 );
 const CoachScreen = lazy(() => import("./screens/CoachScreen.jsx"));
 
-import { subscriptionEngine } from "./lib/subscriptionEngine";
 import { PremiumProvider } from "./context/PremiumContext.jsx";
 
 import {
@@ -44,7 +39,6 @@ import {
   BadgeCheck,
   Target,
   Activity,
-  CreditCard,
   Menu,
   X,
   ChevronRight,
@@ -60,9 +54,6 @@ const SCREENS = {
   PROGRESS: "progress",
   GOALS: "goals",
   PREMIUM: "premium",
-  CHECKOUT_PRO: "checkout-pro",
-  CHECKOUT_ULTRA: "checkout-ultra",
-  BILLING: "billing",
   ULTRA_DASHBOARD: "ultra-dashboard",
   ADMIN: "admin",
   WORKOUT_SESSION: "workout-session",
@@ -77,7 +68,6 @@ const fadeSlide = {
 };
 
 const AUTH_TIMEOUT_MS = 12_000;
-const PLAN_TIMEOUT_MS = 8_000;
 
 function getFriendlyName(user) {
   if (!user) return "Atleta";
@@ -136,7 +126,7 @@ export default function App() {
 
 function AppShell() {
   const [user, setUser] = useState(null);
-  const [userPlan, setUserPlan] = useState("free");
+  const userPlan = "ultra";
   const [currentScreen, setCurrentScreen] = useState(SCREENS.HOME);
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [authError, setAuthError] = useState(null);
@@ -188,23 +178,10 @@ function AppShell() {
 
         if (!firebaseUser) {
           setUser(null);
-          setUserPlan("free");
           return;
         }
 
         setUser(firebaseUser);
-
-        try {
-          const status = await withTimeout(
-            subscriptionEngine(firebaseUser.uid),
-            PLAN_TIMEOUT_MS,
-            "Timeout ao carregar assinatura",
-          );
-          setUserPlan(status.plano || "free");
-        } catch (err) {
-          console.warn("Plano padrão (free):", err?.message || err);
-          setUserPlan("free");
-        }
       });
     } catch (err) {
       clearTimeout(timeoutId);
@@ -219,16 +196,9 @@ function AppShell() {
     };
   }, []);
 
-  useEffect(() => {
-    const onUpgrade = () => navigate(SCREENS.PREMIUM);
-    window.addEventListener("fyzen:upgrade", onUpgrade);
-    return () => window.removeEventListener("fyzen:upgrade", onUpgrade);
-  }, []);
-
   const handleLogout = async () => {
     if (auth) await signOut(auth);
     setUser(null);
-    setUserPlan("free");
     setCurrentScreen(SCREENS.HOME);
   };
 
@@ -282,12 +252,7 @@ function AppShell() {
     { icon: TrendingUp, label: "Progresso", value: SCREENS.PROGRESS },
     { icon: Apple, label: "Alimentação", value: SCREENS.NUTRITION },
     { icon: Target, label: "Metas", value: SCREENS.GOALS },
-    {
-      icon: BadgeCheck,
-      label: userPlan !== "free" ? "Seu plano" : "Planos",
-      value: SCREENS.PREMIUM,
-    },
-    { icon: CreditCard, label: "Minha assinatura", value: SCREENS.BILLING },
+    { icon: BadgeCheck, label: "Acesso gratuito", value: SCREENS.PREMIUM },
   ];
 
   if (userPlan?.toLowerCase() === "ultra") {
@@ -344,19 +309,7 @@ function AppShell() {
       case SCREENS.GOALS:
         return <GoalsScreen />;
       case SCREENS.PREMIUM:
-        return (
-          <PremiumPage
-            userPlan={userPlan}
-            onPlanChange={setUserPlan}
-            onSelectScreen={navigate}
-          />
-        );
-      case SCREENS.BILLING:
-        return <BillingScreen onSelectScreen={navigate} />;
-      case SCREENS.CHECKOUT_PRO:
-        return <CheckoutProPage onSelectScreen={navigate} />;
-      case SCREENS.CHECKOUT_ULTRA:
-        return <CheckoutUltraPage onSelectScreen={navigate} />;
+        return <PremiumPage onSelectScreen={navigate} />;
       case SCREENS.ADMIN:
         return isAdmin ? (
           <AdminScreen user={user} isAdmin={true} />
@@ -383,8 +336,7 @@ function AppShell() {
   };
 
   const activeLabel =
-    navItems.find((item) => item.value === currentScreen)?.label ||
-    "Assinatura";
+    navItems.find((item) => item.value === currentScreen)?.label || "Início";
   const primaryMobile = [
     SCREENS.HOME,
     SCREENS.PLAN,
@@ -405,7 +357,7 @@ function AppShell() {
     );
   }
   return (
-    <PremiumProvider userPlan={userPlan} onPlanChange={setUserPlan}>
+    <PremiumProvider>
       <div className="app-shell">
         <a href="#main-content" className="skip-link">
           Pular para o conteúdo
@@ -426,9 +378,6 @@ function AppShell() {
                 <p className="text-sm text-slate-100 truncate">
                   {friendlyName}
                 </p>
-                <span className="text-xs text-fyzen-muted capitalize">
-                  Plano {userPlan}
-                </span>
               </div>
               <button
                 type="button"
@@ -462,9 +411,6 @@ function AppShell() {
                   month: "long",
                 })}
               </time>
-              <span className="plan-badge">
-                <BadgeCheck size={13} /> {userPlan}
-              </span>
             </div>
           </header>
           <main

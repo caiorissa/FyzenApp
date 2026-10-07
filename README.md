@@ -9,6 +9,8 @@ Fyzen é um fitness OS pessoal: conhece a rotina, organiza o plano, registra cad
 - Histórico compatível: ao encerrar uma sessão detalhada, o resumo também permanece em `historicoTreino/{uid}/registros` para os recursos existentes.
 - Cálculos determinísticos de volume, e1RM (Epley, apenas até 12 reps), PRs e sugestão de progressão; IA interpreta, não calcula.
 - Home mobile-first, aba Fyzen AI contextual e Progresso enriquecido quando há sessões detalhadas.
+- Fyzen Ultra e todos os recursos liberados gratuitamente para todas as contas.
+- Cada exercício tem um atalho para vídeos demonstrativos no YouTube.
 
 Consulte [modelo de dados](docs/DATA-MODEL.md), [arquitetura da IA](docs/AI-ARCHITECTURE.md) e [direção mobile](docs/FRONTEND-DESIGN.md).
 
@@ -35,7 +37,7 @@ npm test
 
 O projeto é JavaScript/JSX, sem configuração TypeScript. ESLint verifica referências, JSX e regras de hooks; Vite valida a compilação.
 
-Os testes abrem um servidor separado na porta 5175 com `vite.test.config.js`. Firebase é substituído **somente nesse servidor** por fixtures em `tests/fixtures`. Pagamento e geração de treino são interceptados nos cenários correspondentes. Não são realizadas operações em contas ou assinaturas reais. O servidor normal e o build de produção continuam usando as integrações existentes.
+Os testes abrem um servidor separado na porta 5175 com `vite.test.config.js`. Firebase é substituído **somente nesse servidor** por fixtures em `tests/fixtures`. Geração de treino é interceptada nos cenários correspondentes. Não são realizadas operações em contas reais.
 
 ## Interface
 
@@ -43,7 +45,7 @@ Os testes abrem um servidor separado na porta 5175 com `vite.test.config.js`. Fi
 - Entrada, cadastro, recuperação e verificação de e-mail.
 - Home com atalhos para ações reais e sequência de treinos.
 - Perfil de treino recolhível, checklist, personalização, geração e relatório semanal.
-- Diário alimentar, metas, progresso, painel Ultra, planos, checkout, assinatura e administração.
+- Diário alimentar, metas, progresso, painel Ultra, planos e administração.
 - Diálogos nativos com teclado e foco, feedback de salvamento, estados vazios e redução de movimento.
 
 ## Dados e segurança

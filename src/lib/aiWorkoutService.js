@@ -1,3 +1,8 @@
+import {
+  applyMainExercisePolicy,
+  limitToMainExercises,
+} from "./workout/mainExercises.js";
+
 const API_URL = (import.meta.env.VITE_AI_WORKOUT_API_URL || "").replace(
   /\/$/,
   "",
@@ -36,24 +41,38 @@ async function solicitarTreinoIA(endpoint, payload) {
 
 // --------- GERAR SEMANA COMPLETA ----------
 export async function gerarPlanoSemanaIA(form) {
-  const data = await solicitarTreinoIA("/workout/week", { form });
+  const formComFocoPrincipal = applyMainExercisePolicy(form);
+  const data = await solicitarTreinoIA("/workout/week", {
+    form: formComFocoPrincipal,
+  });
   // O backend atual retorna `treinos`; versões anteriores retornavam
   // `treinosSemana`. Aceitamos ambos para manter o contrato compatível.
   const treinos = data?.treinosSemana || data?.treinos;
   console.info(
     `[Fyzen AI] ${Array.isArray(treinos) ? treinos.length : 0} grupo(s) recebido(s) para a semana.`,
   );
-  return Array.isArray(treinos) ? treinos : null;
+  return limitToMainExercises(treinos, formComFocoPrincipal);
 }
 
 // --------- REGENERAR DIA ----------
 export async function regenerarDiaIA(form, dia, gruposAtuais) {
+  const formComFocoPrincipal = applyMainExercisePolicy(form);
+  const gruposFixos = Array.isArray(gruposAtuais)
+    ? gruposAtuais.map((grupo) => grupo.grupo).filter(Boolean)
+    : [];
+  const formDoDia = {
+    ...formComFocoPrincipal,
+    diretrizExercicios: gruposFixos.length
+      ? `${formComFocoPrincipal.diretrizExercicios} No dia ${dia}, mantenha exatamente estes grupos musculares e esta ordem: ${gruposFixos.join(", ")}. Troque somente os exercícios dentro de cada grupo.`
+      : formComFocoPrincipal.diretrizExercicios,
+  };
   const data = await solicitarTreinoIA("/workout/day", {
-    form,
+    form: formDoDia,
     dia,
-    gruposAtuais,
+    gruposAtuais: limitToMainExercises(gruposAtuais, formDoDia),
+    gruposMuscularesFixos: gruposFixos,
   });
-  return Array.isArray(data?.grupos) ? data.grupos : null;
+  return limitToMainExercises(data?.grupos, formDoDia, gruposAtuais);
 }
 
 // --------- REGENERAR SEMANA (ALIAS / COMPATIBILIDADE) ----------

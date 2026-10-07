@@ -1,8 +1,7 @@
 import PageHeader from "../components/PageHeader.jsx";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import Card from "../components/Card.jsx";
 import {
-  Users,
   Activity,
   Flame,
   Database,
@@ -12,22 +11,13 @@ import {
   Trophy,
   PieChart,
   Bell,
+  Users,
 } from "lucide-react";
 import { usePlanDocument } from "../lib/hooks/usePlanDocument.js";
 import { useAdminAnalytics } from "../lib/hooks/useAdminAnalytics.js";
 import { useAdminWeeklyAnalytics } from "../lib/hooks/useAdminWeeklyAnalytics.js";
 import { db } from "../lib/firebaseConfig";
-import {
-  collection,
-  serverTimestamp,
-  addDoc,
-  getDocs,
-  doc,
-  getDoc,
-  setDoc,
-  query,
-  where,
-} from "firebase/firestore";
+import { collection, serverTimestamp, addDoc } from "firebase/firestore";
 
 export default function AdminScreen({ user, isAdmin }) {
   const uid = user?.uid ?? null;
@@ -39,137 +29,6 @@ export default function AdminScreen({ user, isAdmin }) {
   const [notifText, setNotifText] = useState("");
   const [sendingNotif, setSendingNotif] = useState(false);
   const [notifMsg, setNotifMsg] = useState("");
-  const [logs, setLogs] = useState([]);
-  const [accessForm, setAccessForm] = useState({
-    email: "",
-    plano: "pro",
-    dias: "30",
-  });
-  const [grantingAccess, setGrantingAccess] = useState(false);
-  const [accessMessage, setAccessMessage] = useState("");
-
-  async function corrigirAssinaturas() {
-    if (
-      !window.confirm("Corrigir documentos quebrados da coleção 'assinaturas'?")
-    ) {
-      return;
-    }
-
-    setLogs((prev) => [...prev, "🔍 Iniciando correção..."]);
-
-    try {
-      const snap = await getDocs(collection(db, "assinaturas"));
-      let corrigidos = 0;
-      let detalhes = [];
-
-      for (const docSnap of snap.docs) {
-        const uid = docSnap.id;
-        const data = docSnap.data();
-        const problemas = [];
-
-        if (data.renovaEn) problemas.push("renovaEn → renovaEm");
-        if (!data.plano) problemas.push("plano ausente");
-        if (!data.criadoEm) problemas.push("criadoEm ausente");
-        if (!data.metodo) problemas.push("metodo ausente");
-
-        if (problemas.length === 0) {
-          detalhes.push(`✔ ${uid}: Nenhuma correção necessária`);
-          continue;
-        }
-
-        const renovaEmCorrigido =
-          typeof data.renovaEn === "number" ? data.renovaEn : data.renovaEm;
-
-        const novoDoc = {
-          plano: (data.plano || "free").toLowerCase(),
-          ativo: data.ativo !== false,
-          metodo: data.metodo || "manual",
-          criadoEm: data.criadoEm || Date.now(),
-          renovaEm: renovaEmCorrigido || Date.now() + 30 * 86400000,
-          ultimaVerificacao: Date.now(),
-        };
-
-        await setDoc(doc(db, "assinaturas", uid), novoDoc, { merge: false });
-
-        corrigidos++;
-        detalhes.push(`🔧 ${uid}: Corrigido → ${problemas.join(", ")}`);
-      }
-
-      setLogs((prev) => [
-        ...prev,
-        `✅ Concluído: ${corrigidos} assinatura(s) corrigida(s).`,
-        ...detalhes,
-      ]);
-    } catch (err) {
-      console.error("Erro ao corrigir assinaturas", err);
-      setLogs((prev) => [
-        ...prev,
-        "❌ Erro ao corrigir assinaturas (veja o console).",
-      ]);
-    }
-  }
-
-  async function concederAcesso(event) {
-    event.preventDefault();
-    const email = accessForm.email.trim().toLowerCase();
-    const dias = Number(accessForm.dias);
-
-    if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
-      setAccessMessage("Informe um e-mail válido.");
-      return;
-    }
-    if (!["pro", "ultra"].includes(accessForm.plano)) {
-      setAccessMessage("Escolha Pro ou Ultra.");
-      return;
-    }
-    if (!Number.isInteger(dias) || dias < 1 || dias > 3650) {
-      setAccessMessage("Informe uma validade entre 1 e 3.650 dias.");
-      return;
-    }
-
-    setGrantingAccess(true);
-    setAccessMessage("");
-    try {
-      const usersSnap = await getDocs(
-        query(collection(db, "users"), where("email", "==", email)),
-      );
-      const usuario = usersSnap.docs[0];
-      if (!usuario) {
-        setAccessMessage("Nenhum usuário foi encontrado com este e-mail.");
-        return;
-      }
-
-      const targetUid = usuario.id;
-      const ref = doc(db, "assinaturas", targetUid);
-      const atual = await getDoc(ref);
-      const agora = Date.now();
-      await setDoc(
-        ref,
-        {
-          plano: accessForm.plano,
-          ativo: true,
-          metodo: "admin_manual",
-          criadoEm: atual.exists() ? atual.data().criadoEm || agora : agora,
-          concedidoEm: agora,
-          concedidoPor: user?.uid || "admin",
-          renovaEm: agora + dias * 86400000,
-          canceladoEm: null,
-          ultimaVerificacao: agora,
-        },
-        { merge: true },
-      );
-      setAccessMessage(
-        `${accessForm.plano.toUpperCase()} liberado por ${dias} dia${dias === 1 ? "" : "s"}.`,
-      );
-      setAccessForm((current) => ({ ...current, email: "" }));
-    } catch (err) {
-      console.error("Erro ao conceder plano:", err);
-      setAccessMessage("Não foi possível conceder o acesso. Tente novamente.");
-    } finally {
-      setGrantingAccess(false);
-    }
-  }
-
   if (!isAdmin) {
     return (
       <Card title="Acesso restrito" className="bg-slate-900/70">
@@ -228,123 +87,11 @@ export default function AdminScreen({ user, isAdmin }) {
     domingo: "Dom",
   };
 
-  function PremiumUsersList() {
-    const [lista, setLista] = useState([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-      async function carregar() {
-        setLoading(true);
-
-        const snap = await getDocs(collection(db, "assinaturas"));
-        const temp = [];
-
-        for (const docAss of snap.docs) {
-          const data = docAss.data();
-          const uid = docAss.id;
-
-          if (!data.plano || data.plano === "free") continue;
-
-          const userSnap = await getDoc(doc(db, "users", uid));
-          const user = userSnap.exists() ? userSnap.data() : {};
-
-          temp.push({
-            uid,
-            nome: user.nome || "Usuário",
-            email: user.email || "",
-            plano: data.plano,
-            ativo: data.ativo,
-            metodo: data.metodo || "--",
-            renovaEm: data.renovaEm,
-            criadoEm: data.criadoEm,
-            canceladoEm: data.canceladoEm,
-          });
-        }
-
-        setLista(temp);
-        setLoading(false);
-      }
-
-      carregar();
-    }, []);
-
-    if (loading)
-      return (
-        <p className="text-sm text-slate-400 py-2">
-          Carregando usuários premium…
-        </p>
-      );
-
-    if (!lista.length)
-      return (
-        <p className="text-sm text-slate-500">
-          Nenhum usuário premium encontrado.
-        </p>
-      );
-
-    return (
-      <div className="max-h-80 overflow-auto custom-scroll">
-        <table className="w-full text-sm text-slate-300">
-          <thead className="bg-slate-900/60 sticky top-0 backdrop-blur">
-            <tr className="text-slate-500 text-xs uppercase tracking-wide">
-              <th className="py-2 px-2 text-left">Usuário</th>
-              <th className="py-2 px-2 text-left">Plano</th>
-              <th className="py-2 px-2 text-left">Status</th>
-              <th className="py-2 px-2 text-left">Método</th>
-              <th className="py-2 px-2 text-left">Renova</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lista.map((u) => (
-              <tr
-                key={u.uid}
-                className="border-t border-white/5 hover:bg-white/5 transition"
-              >
-                <td className="py-2 px-2">
-                  <p className="font-medium text-slate-100">{u.nome}</p>
-                  <p className="text-xs text-slate-500">{u.email}</p>
-                </td>
-
-                <td className="py-2 px-2">
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                      u.plano === "ultra"
-                        ? "bg-teal-500/20 text-fyzen-accent border border-teal-500/40"
-                        : "bg-amber-500/20 text-amber-300 border border-amber-500/40"
-                    }`}
-                  >
-                    {u.plano.toUpperCase()}
-                  </span>
-                </td>
-
-                <td className="py-2 px-2">
-                  {u.ativo ? (
-                    <span className="text-fyzen-accent text-xs">Ativo</span>
-                  ) : (
-                    <span className="text-red-300 text-xs">Cancelado</span>
-                  )}
-                </td>
-
-                <td className="py-2 px-2 text-xs text-slate-400">{u.metodo}</td>
-
-                <td className="py-2 px-2 text-xs text-slate-400">
-                  {u.renovaEm
-                    ? new Date(u.renovaEm).toLocaleDateString("pt-BR")
-                    : "--"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <PageHeader
         title="Visão administrativa"
-        description="Acompanhe a atividade, consulte os planos e gerencie os avisos do Fyzen."
+        description="Acompanhe a atividade e gerencie os avisos do Fyzen."
       />
 
       {loading && (
@@ -613,108 +360,6 @@ export default function AdminScreen({ user, isAdmin }) {
         </>
       )}
 
-      <Card
-        title="Conceder acesso Premium"
-        className="bg-slate-900/80"
-        icon={Users}
-      >
-        <form onSubmit={concederAcesso} className="space-y-4">
-          <p className="text-sm text-fyzen-muted leading-relaxed">
-            Libere Pro ou Ultra manualmente usando o e-mail cadastrado do
-            usuário.
-          </p>
-          <div className="grid sm:grid-cols-[minmax(0,1fr)_130px_130px] gap-3">
-            <label>
-              <span className="field-label">E-mail do usuário</span>
-              <input
-                className="input-style"
-                type="email"
-                inputMode="email"
-                value={accessForm.email}
-                onChange={(event) =>
-                  setAccessForm((current) => ({
-                    ...current,
-                    email: event.target.value,
-                  }))
-                }
-                placeholder="nome@exemplo.com"
-                autoComplete="email"
-                required
-              />
-            </label>
-            <label>
-              <span className="field-label">Plano</span>
-              <select
-                aria-label="Plano"
-                value={accessForm.plano}
-                onChange={(event) =>
-                  setAccessForm((current) => ({
-                    ...current,
-                    plano: event.target.value,
-                  }))
-                }
-              >
-                <option value="pro">Pro</option>
-                <option value="ultra">Ultra</option>
-              </select>
-            </label>
-            <label>
-              <span className="field-label">Validade</span>
-              <select
-                aria-label="Validade"
-                value={accessForm.dias}
-                onChange={(event) =>
-                  setAccessForm((current) => ({
-                    ...current,
-                    dias: event.target.value,
-                  }))
-                }
-              >
-                <option value="7">7 dias</option>
-                <option value="30">30 dias</option>
-                <option value="90">90 dias</option>
-                <option value="365">1 ano</option>
-              </select>
-            </label>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="submit"
-              className="btn-primary"
-              disabled={grantingAccess || !accessForm.email.trim()}
-            >
-              {grantingAccess
-                ? "Concedendo…"
-                : `Conceder ${accessForm.plano.toUpperCase()}`}
-            </button>
-            {accessMessage && (
-              <p
-                role={
-                  /não foi|informe|nenhum|escolha/i.test(accessMessage)
-                    ? "alert"
-                    : "status"
-                }
-                className={
-                  /não foi|informe|nenhum|escolha/i.test(accessMessage)
-                    ? "text-sm text-red-300"
-                    : "text-sm text-fyzen-accent"
-                }
-              >
-                {accessMessage}
-              </p>
-            )}
-          </div>
-        </form>
-      </Card>
-
-      <Card
-        title="Usuários Premium (PRO e ULTRA)"
-        className="bg-slate-900/80"
-        icon={Users}
-      >
-        <PremiumUsersList />
-      </Card>
-
       {data && (
         <Card title="Plano do administrador" className="bg-slate-900/80">
           <div className="grid sm:grid-cols-2 gap-3 text-sm text-slate-200">
@@ -784,25 +429,6 @@ export default function AdminScreen({ user, isAdmin }) {
           </div>
         </form>
       </Card>
-      {logs.length > 0 && (
-        <div className="mt-6 p-4 glass-card border border-white/10 rounded-xl max-h-80 overflow-y-auto text-sm space-y-1">
-          <p className="text-fyzen-accent font-semibold mb-2">
-            Logs da manutenção:
-          </p>
-          {logs.map((log, i) => (
-            <p key={i} className="text-slate-300">
-              {log}
-            </p>
-          ))}
-        </div>
-      )}
-
-      <button
-        onClick={corrigirAssinaturas}
-        className="px-4 py-2 rounded-lg bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 hover:bg-yellow-500/30 transition"
-      >
-        Corrigir assinaturas quebradas
-      </button>
     </div>
   );
 }

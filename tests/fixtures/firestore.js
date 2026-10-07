@@ -1,5 +1,4 @@
 const scenario = new URLSearchParams(location.search).get("scenario");
-const plan = new URLSearchParams(location.search).get("plan") || "free";
 const data = JSON.parse(sessionStorage.getItem("qa-documents") || "{}");
 const form = {
   sexo: "feminino",
@@ -31,15 +30,6 @@ if (!data["users/cliente-01"])
   data["users/cliente-01"] = {
     nome: "Cliente de teste",
     email: "cliente@example.test",
-  };
-if (plan !== "free")
-  data["assinaturas/qa-user"] = {
-    plano: plan,
-    ativo: true,
-    renovaEm: new URLSearchParams(location.search).has("expired")
-      ? Date.now() - 1000
-      : Date.now() + 86400000 * 30,
-    metodo: "Stripe",
   };
 export const collection = (_, ...parts) => ({ path: parts.join("/") });
 export const doc = (base, ...parts) => ({

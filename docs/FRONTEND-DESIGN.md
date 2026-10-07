@@ -2,7 +2,7 @@
 
 ## Mapa e limites
 
-React 18 + Vite; Tailwind 3; Lucide; Framer Motion; Firebase Auth/Firestore; Stripe. App.jsx controla as telas por estado, sem router. PremiumContext mantém o nível de acesso. Preservar coleções, contratos, geração de treino, checklist, permissões e checkout. Não alterar credenciais.
+React 18 + Vite; Tailwind 3; Lucide; Framer Motion; Firebase Auth/Firestore. App.jsx controla as telas por estado, sem router. PremiumContext libera o nível Ultra a todas as contas. Preservar coleções, contratos, geração de treino, checklist e permissões. Não alterar credenciais.
 
 ## Direção
 
@@ -35,4 +35,4 @@ Revisão contra o briefing: evitar dashboard de métricas inventadas, cartões i
 
 ## Validação
 
-Build de base, lint configurado e executado, testes de regressão de UI isolados de serviços reais, inspeção no navegador. Credenciais e operações pagas reais não são pressupostos dos testes.
+Build de base, lint configurado e executado, testes de regressão de UI isolados de serviços reais, inspeção no navegador. Credenciais reais não são pressupostas nos testes.

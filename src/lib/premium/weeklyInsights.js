@@ -1,4 +1,4 @@
-export async function gerarWeeklyInsights(treinos = [], dias = [], userPlan) {
+export async function gerarWeeklyInsights(treinos = [], dias = []) {
   if (!Array.isArray(treinos) || treinos.length === 0) return null;
 
   const DIAS =
@@ -47,9 +47,6 @@ export async function gerarWeeklyInsights(treinos = [], dias = [], userPlan) {
       null,
     ) || null;
 
-  const nivel =
-    userPlan === "ultra" ? "ULTRA" : userPlan === "pro" ? "PRO" : "FREE";
-
   const basico = {
     totalTreinos,
     totalExercicios,
@@ -58,10 +55,8 @@ export async function gerarWeeklyInsights(treinos = [], dias = [], userPlan) {
     diaMaisForte,
     porDia,
     volume: volumeGrupo,
+    nivel: "ULTRA",
   };
 
-  return {
-    ...basico,
-    nivel,
-  };
+  return basico;
 }

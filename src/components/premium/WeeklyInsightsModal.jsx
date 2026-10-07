@@ -23,7 +23,6 @@ export default function WeeklyInsightsModal({ open, onClose, insights }) {
     diaMaisForte,
     porDia = [],
     volume = {},
-    nivel,
   } = insights;
 
   const volumeEntries = Object.entries(volume || {});
@@ -31,13 +30,6 @@ export default function WeeklyInsightsModal({ open, onClose, insights }) {
 
   const maxExerciciosDia =
     porDia.length > 0 ? Math.max(...porDia.map((d) => d.exercicios || 0)) : 0;
-
-  const badgeColor =
-    nivel === "ULTRA"
-      ? "bg-fyzen-warm text-slate-900"
-      : nivel === "PRO"
-        ? "bg-fyzen-accent text-slate-900"
-        : "bg-slate-700 text-slate-200";
 
   return (
     <Dialog label="Relatório da semana" onClose={onClose}>
@@ -53,15 +45,6 @@ export default function WeeklyInsightsModal({ open, onClose, insights }) {
             <p className="text-xs sm:text-sm text-slate-400">
               Visão geral dos seus treinos distribuídos ao longo da semana.
             </p>
-            {nivel && (
-              <span
-                className={`inline-flex items-center px-3 py-1 rounded-full text-[11px] font-semibold mt-1 ${badgeColor}`}
-              >
-                {nivel === "ULTRA" && "Painel ULTRA ativo"}
-                {nivel === "PRO" && nivel === "PRO" && "Plano PRO ativo"}
-                {nivel === "FREE" && "Plano gratuito"}
-              </span>
-            )}
           </div>
 
           <button

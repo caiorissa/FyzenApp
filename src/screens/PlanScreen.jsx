@@ -21,6 +21,10 @@ import RegenerateDayButton from "@/components/premium/RegenerateDayButton";
 import RegenerateWeekButton from "@/components/premium/RegenerateWeekButton";
 import { usePremium } from "@/context/PremiumContext";
 import { gerarPlanoSemanaIA } from "@/lib/aiWorkoutService";
+import {
+  getMainExercisesPerGroup,
+  limitToMainExercises,
+} from "@/lib/workout/mainExercises";
 
 const diasSemana = [
   "domingo",
@@ -75,7 +79,7 @@ export default function PlanScreen({ onStartWorkout }) {
   const [bloqueado, setBloqueado] = useState(false);
   const [mensagem, setMensagem] = useState("");
 
-  const { nivel, isPro, isUltra } = usePremium();
+  const { nivel, isUltra } = usePremium();
 
   useEffect(() => {
     const unsubscribe = subscribeAuth(async (u) => {
@@ -148,6 +152,9 @@ export default function PlanScreen({ onStartWorkout }) {
       if (snap.exists()) {
         const data = snap.data();
         const loadedForm = { ...initialForm, ...(data.form ?? {}) };
+        loadedForm.exerciciosPorGrupo = String(
+          getMainExercisesPerGroup(loadedForm),
+        );
         savedForm.current = JSON.stringify(loadedForm);
         setForm(loadedForm);
         setAnalysis(data.analysis ?? null);
@@ -167,7 +174,7 @@ export default function PlanScreen({ onStartWorkout }) {
 
     const gerar = async () => {
       try {
-        const novos = await gerarWeeklyInsights(plan.treinos, DIAS, nivel);
+        const novos = await gerarWeeklyInsights(plan.treinos, DIAS);
         setWeeklyInsights(novos);
       } catch (err) {
         console.error("Erro ao gerar insights semanais:", err);
@@ -608,7 +615,7 @@ export default function PlanScreen({ onStartWorkout }) {
   };
 
   useEffect(() => {
-    if (!user || loading || loadFailed) return;
+    if (!user || loading || loadFailed || saving) return;
     if (isEditingForm || JSON.stringify(form) === savedForm.current) return;
 
     const timeout = setTimeout(async () => {
@@ -626,7 +633,7 @@ export default function PlanScreen({ onStartWorkout }) {
     }, 1500);
 
     return () => clearTimeout(timeout);
-  }, [form, user, isEditingForm, loading, loadFailed]);
+  }, [form, user, isEditingForm, loading, loadFailed, saving]);
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -642,17 +649,11 @@ export default function PlanScreen({ onStartWorkout }) {
 
     const tipo = local === "academia" ? base.academia : base.casa;
 
-    const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5);
-
-    return tipo.map((grupo) => {
-      const qtd =
-        parseInt(formAtual.exerciciosPorGrupo) || grupo.exercicios.length;
-      const embaralhados = shuffle(grupo.exercicios);
-      return {
-        grupo: grupo.grupo,
-        exercicios: embaralhados.slice(0, qtd),
-      };
-    });
+    const grupos = tipo.map((grupo) => ({
+      grupo: grupo.grupo,
+      exercicios: grupo.exercicios,
+    }));
+    return limitToMainExercises(grupos, formAtual) || [];
   };
 
   const handleGenerate = async (e) => {
@@ -713,6 +714,7 @@ export default function PlanScreen({ onStartWorkout }) {
       setPlan(dados.plan);
       setNutrition(dados.nutrition);
       await salvarPlano(user.uid, dados);
+      savedForm.current = JSON.stringify(form);
       console.info("[Fyzen Plano] Plano salvo com sucesso.");
       setStatusMsg(
         usouFallbackDaIA
@@ -870,7 +872,7 @@ export default function PlanScreen({ onStartWorkout }) {
             </Select>
 
             <Select
-              label="Exercícios por grupo"
+              label="Exercícios principais por grupo"
               value={form.exerciciosPorGrupo}
               onFocus={() => setIsEditingForm(true)}
               onBlur={() => setIsEditingForm(false)}
@@ -878,10 +880,9 @@ export default function PlanScreen({ onStartWorkout }) {
                 handleChange("exerciciosPorGrupo", e.target.value)
               }
             >
+              <option value="1">1 exercício</option>
+              <option value="2">2 exercícios</option>
               <option value="3">3 exercícios</option>
-              <option value="4">4 exercícios</option>
-              <option value="5">5 exercícios</option>
-              <option value="6">6 exercícios</option>
             </Select>
           </form>
 
@@ -959,7 +960,10 @@ export default function PlanScreen({ onStartWorkout }) {
               novoDia.forEach((grupo, i) => {
                 const idx = indicesDoDia[i];
                 if (idx != null) {
-                  novos[idx] = grupo;
+                  novos[idx] = {
+                    ...novos[idx],
+                    exercicios: grupo.exercicios,
+                  };
                 }
               });
 
@@ -984,11 +988,10 @@ export default function PlanScreen({ onStartWorkout }) {
 
             return (
               <>
-                {(isUltra || isPro) && (
+                {isUltra && (
                   <div className="grid md:grid-cols-2 gap-4">
                     <RegenerateDayButton
                       nivel={nivel}
-                      isPro={isPro}
                       isUltra={isUltra}
                       dayData={treinosDoDia}
                       form={form}
@@ -998,7 +1001,6 @@ export default function PlanScreen({ onStartWorkout }) {
 
                     <RegenerateWeekButton
                       nivel={nivel}
-                      isPro={isPro}
                       isUltra={isUltra}
                       form={form}
                       objetivo={form.objetivo}

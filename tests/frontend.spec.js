@@ -25,9 +25,7 @@ const navigate = async (page, label) => {
     Alimentação: "Seu diário alimentar",
     Progresso: "Cada treino conta",
     Metas: "Metas que movem você",
-    Planos: "Mais possibilidades para sua rotina",
-    "Seu plano": "Mais possibilidades para sua rotina",
-    "Minha assinatura": "Minha assinatura",
+    "Acesso gratuito": "Tudo do Fyzen, grátis",
     "Painel Ultra": "Sua evolução em detalhe",
     Admin: "Visão administrativa",
   };
@@ -61,8 +59,7 @@ for (const width of [360, 390, 768, 1024, 1440]) {
       "Alimentação",
       "Progresso",
       "Metas",
-      "Planos",
-      "Minha assinatura",
+      "Acesso gratuito",
     ]) {
       await navigate(page, label);
       await expect(page.locator("main h1")).toBeVisible();
@@ -173,6 +170,20 @@ test("refeições: adicionar, persistir, remover e validar", async ({ page }) =>
 test("plano: geração preserva campos; relatório fecha por Escape e retorna foco", async ({
   page,
 }) => {
+  await page.route("**/api/workout/week", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        treinos: [
+          {
+            grupo: "Peito",
+            exercicios: ["Supino reto – 4x10", "Crossover – 3x12"],
+          },
+        ],
+        source: "ia",
+      }),
+    }),
+  );
   await page.goto("/?scenario=empty");
   await navigate(page, "Treino");
   await expect(
@@ -265,22 +276,51 @@ test("Ultra: aceita o contrato de semana do backend publicado", async ({
   await expect(page.getByText("Supino reto — 4x10")).toBeVisible();
 });
 
-test("Pro: plano não exibe personalização de exercícios e checkout volta para planos", async ({
+test("Ultra é gratuito e todo exercício oferece vídeo demonstrativo", async ({
   page,
 }) => {
-  await page.goto("/?plan=pro");
+  await page.goto("/?plan=free&expired=1");
   await navigate(page, "Treino");
+  const exerciseRows = page.getByRole("listitem");
+  await expect(exerciseRows).not.toHaveCount(0);
   await expect(
-    page.getByRole("button", { name: "Personalizar exercícios" }),
-  ).toHaveCount(0);
-  await navigate(page, "Seu plano");
-  await page.getByRole("button", { name: "Escolher ULTRA" }).click();
+    page.getByRole("link", { name: /Buscar vídeos de demonstração de/ }),
+  ).toHaveCount((await exerciseRows.count()) - 1);
   await expect(
-    page.getByRole("heading", { name: "Assinatura ULTRA" }),
+    page.getByRole("button", { name: /Ver vídeo de demonstração de/ }),
+  ).toHaveCount(1);
+  await page
+    .getByRole("button", {
+      name: "Ver vídeo de demonstração de Agachamento livre",
+    })
+    .click();
+  await expect(
+    page.getByRole("dialog", {
+      name: "Vídeo de demonstração: Agachamento livre",
+    }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Voltar aos planos" }).click();
   await expect(
-    page.getByRole("heading", { name: "Mais possibilidades para sua rotina" }),
+    page.getByTitle("Vídeo de demonstração de Agachamento livre"),
+  ).toHaveAttribute(
+    "src",
+    "https://www.youtube-nocookie.com/embed/M7lc1UVf-VE?playsinline=1",
+  );
+  await page.getByRole("button", { name: "Fechar vídeo" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", {
+      name: "Ver vídeo de demonstração de Agachamento livre",
+    }),
+  ).toBeFocused();
+  await expect(
+    page
+      .getByRole("link", { name: /Buscar vídeos de demonstração de/ })
+      .first(),
+  ).toBeVisible();
+  await navigate(page, "Acesso gratuito");
+  await expect(page.getByText("Gratuito para todos")).toBeVisible();
+  await expect(
+    page.getByText("Todos os recursos, sempre grátis."),
   ).toBeVisible();
 });
 
@@ -439,36 +479,6 @@ for (const width of [320, 360, 390, 430]) {
   });
 }
 
-test("pagamento: contrato da requisição e erro com opção de tentar novamente", async ({
-  page,
-}) => {
-  let payload;
-  await page.route("**/api/stripe/create-checkout-session", async (route) => {
-    payload = route.request().postDataJSON();
-    await route.fulfill({
-      status: 503,
-      contentType: "application/json",
-      body: JSON.stringify({ error: "Temporarily unavailable" }),
-    });
-  });
-  await page.goto("/");
-  await navigate(page, "Planos");
-  await page.getByRole("button", { name: "Escolher PRO" }).click();
-  await page.getByRole("button", { name: "Assinar com Stripe" }).click();
-  await expect(
-    page.getByText("Não foi possível abrir o pagamento. Tente novamente."),
-  ).toBeVisible();
-  expect(payload).toEqual({
-    priceId: "price_1SdDk5Rw5LzzuwFsY91tjPeB",
-    uid: "qa-user",
-    email: "qa@example.test",
-    plano: "pro",
-  });
-  await expect(
-    page.getByRole("button", { name: "Assinar com Stripe" }),
-  ).toBeEnabled();
-});
-
 test("painel administrativo permanece acessível somente ao administrador", async ({
   page,
 }) => {
@@ -484,38 +494,6 @@ test("painel administrativo permanece acessível somente ao administrador", asyn
   await noOverflow(page);
 });
 
-test("administrador concede acesso Pro ou Ultra pelo e-mail", async ({
-  page,
-}) => {
-  await page.goto("/?scenario=admin");
-  await navigate(page, "Admin");
-
-  await page
-    .getByLabel("E-mail do usuário", { exact: true })
-    .fill("cliente@example.test");
-  await page.getByLabel("Plano", { exact: true }).selectOption("ultra");
-  await page.getByLabel("Validade", { exact: true }).selectOption("90");
-  await page.getByRole("button", { name: "Conceder ULTRA" }).click();
-
-  await expect(page.getByRole("status")).toContainText(
-    "ULTRA liberado por 90 dias.",
-  );
-  await expect
-    .poll(() =>
-      page.evaluate(() => {
-        const documentos = JSON.parse(
-          sessionStorage.getItem("qa-documents") || "{}",
-        );
-        return documentos["assinaturas/cliente-01"];
-      }),
-    )
-    .toMatchObject({
-      plano: "ultra",
-      ativo: true,
-      metodo: "admin_manual",
-    });
-});
-
 test("Ultra: regenerar dia e semana salva os novos exercícios", async ({
   page,
 }) => {
@@ -527,9 +505,9 @@ test("Ultra: regenerar dia e semana salva os novos exercícios", async ({
           {
             grupo: "Peito",
             exercicios: [
-              "Supino novo – 3x12",
-              "Crucifixo – 3x12",
-              "Flexão – 3x10",
+              "Supino inclinado – 3x12",
+              "Crucifixo com halteres – 3x12",
+              "Flexão de braço – 3x10",
             ],
           },
         ],
@@ -543,19 +521,19 @@ test("Ultra: regenerar dia e semana salva os novos exercícios", async ({
     page.getByText("Novo treino do dia salvo.", { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText("Supino novo – 3x12", { exact: true }),
+    page.getByText("Supino inclinado – 3x12", { exact: true }),
   ).toBeVisible();
   await navigate(page, "Início");
   await navigate(page, "Treino");
   await expect(
-    page.getByText("Supino novo – 3x12", { exact: true }),
+    page.getByText("Supino inclinado – 3x12", { exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Gerar nova semana inteira" }).click();
   await expect(
     page.getByText("Nova semana salva no seu plano.", { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText("Supino novo – 3x12", { exact: true }),
+    page.getByText("Supino inclinado – 3x12", { exact: true }),
   ).toHaveCount(0);
   const saved = await page.evaluate(
     () =>
@@ -577,25 +555,25 @@ test("abrir treino não grava nem sobrescreve o perfil carregado", async ({
   ).toBeNull();
 });
 
-test("assinatura expirada mantém navegação e permissões no plano Free", async ({
+test("todos os recursos Ultra continuam gratuitos para qualquer conta", async ({
   page,
 }) => {
-  await page.goto("/?plan=ultra&expired=1");
-  await expect(
-    page.getByRole("heading", { name: "Olá, Marina." }),
-  ).toBeVisible();
+  await page.goto("/?plan=free&expired=1");
+  await expect(page.getByText("Acesso total")).toHaveCount(0);
+  await expect(page.getByText("ULTRA · GRÁTIS")).toHaveCount(0);
+  await expect(page.getByText("Fyzen Ultra · grátis")).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Painel Ultra", exact: true }),
-  ).toHaveCount(0);
+  ).toBeVisible();
   await navigate(page, "Treino");
   await expect(
     page.getByRole("button", { name: "Gerar novo treino do dia" }),
-  ).toHaveCount(0);
-  await expect(
-    page.getByRole("button", { name: "Personalizar exercícios" }),
-  ).toHaveCount(0);
-  await navigate(page, "Planos");
-  await expect(
-    page.getByText("Seu plano atual", { exact: true }),
   ).toBeVisible();
+  await expect(
+    page
+      .getByRole("link", { name: /Buscar vídeos de demonstração de/ })
+      .first(),
+  ).toBeVisible();
+  await navigate(page, "Acesso gratuito");
+  await expect(page.getByText("Gratuito para todos")).toBeVisible();
 });

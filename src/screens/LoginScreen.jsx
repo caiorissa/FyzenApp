@@ -32,7 +32,6 @@ export default function LoginScreen({ onLoginSuccess }) {
       await setDoc(ref, {
         uid: user.uid,
         email: user.email,
-        plan: "free",
         createdAt: Date.now(),
       });
     }
