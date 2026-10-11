@@ -116,6 +116,27 @@ test("seletor permite até cinco exercícios principais por grupo", () => {
   ).toHaveLength(5);
 });
 
+test("completa até cinco exercícios válidos quando a geração devolve só três", () => {
+  const [group] = limitToMainExercises(
+    [
+      {
+        grupo: "Ombros e trapézio",
+        exercicios: [
+          "Desenvolvimento com halteres — 4x10",
+          "Elevação lateral — 3x12",
+          "Remada alta — 3x10",
+        ],
+      },
+    ],
+    { local: "academia", exerciciosPorGrupo: "5" },
+  );
+
+  expect(group.exercicios).toHaveLength(5);
+  expect(group.exercicios).toContain("Face pull");
+  expect(group.exercicios).toContain("Voador inverso");
+  expect(new Set(group.exercicios.map((exercise) => exercise.split(" — ")[0])).size).toBe(5);
+});
+
 test("links do YouTube são convertidos em embeds e URLs externas são recusadas", () => {
   expect(
     getYouTubeEmbedUrl("https://www.youtube.com/watch?v=M7lc1UVf-VE"),

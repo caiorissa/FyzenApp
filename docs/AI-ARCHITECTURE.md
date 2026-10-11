@@ -12,7 +12,7 @@ Os endpoints continuam opcionais: se a geração falhar, o plano determinístico
 ## Exercícios principais e regeneração diária
 
 - A IA recebe o catálogo fechado de exercícios de `docs/EXERCISE-VIDEO-CATALOG.md`, filtrado pelo local do treino, e pode selecionar no máximo cinco por grupo.
-- A resposta é filtrada no cliente para aceitar apenas exercícios do catálogo e compatíveis com o grupo muscular e o local escolhidos.
+- A resposta é filtrada no cliente para aceitar apenas exercícios do catálogo e compatíveis com o grupo muscular e o local escolhidos; quando a IA devolve menos do que foi pedido, a lista é completada com opções compatíveis ainda não usadas.
 - Na regeneração de um dia, os grupos e a ordem atuais são enviados como fixos. O cliente mantém os nomes desses grupos e rejeita a resposta se ela trocar o foco muscular do dia.
 - O gerador determinístico também escolhe somente exercícios principais do catálogo.
 

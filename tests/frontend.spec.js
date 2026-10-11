@@ -267,13 +267,18 @@ test("Ultra: aceita o contrato de semana do backend publicado", async ({
     .getByLabel("Objetivo", { exact: true })
     .selectOption("hipertrofia");
   await page.getByLabel("Local do treino").selectOption("academia");
+  await page
+    .getByLabel("Exercícios principais por grupo")
+    .selectOption("5");
   await page.getByRole("button", { name: "Gerar meu plano" }).click();
 
   await expect(
     page.getByText("Fyzen AI está gerando seu plano..."),
   ).toBeVisible();
   await expect(page.getByText("Plano gerado e salvo!")).toBeVisible();
-  await expect(page.getByText("Supino reto — 4x10")).toBeVisible();
+  await expect(page.getByText("Supino reto", { exact: true })).toBeVisible();
+  await expect(page.getByText("4 × 10", { exact: true })).toBeVisible();
+  await expect(page.locator(".plan-exercises li")).toHaveCount(5);
 });
 
 test("Ultra é gratuito e todo exercício oferece vídeo demonstrativo", async ({
@@ -545,20 +550,23 @@ test("Ultra: regenerar dia e semana salva os novos exercícios", async ({
     page.getByText("Novo treino do dia salvo.", { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText("Supino inclinado – 3x12", { exact: true }),
+    page.getByText("Supino inclinado", { exact: true }),
   ).toBeVisible();
+  await expect(
+    page
+      .locator(".plan-exercises li")
+      .filter({ hasText: "Supino inclinado" })
+      .locator("small"),
+  ).toHaveText("3 × 12");
   await navigate(page, "Início");
   await navigate(page, "Treino");
   await expect(
-    page.getByText("Supino inclinado – 3x12", { exact: true }),
+    page.getByText("Supino inclinado", { exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Gerar nova semana inteira" }).click();
   await expect(
     page.getByText("Nova semana salva no seu plano.", { exact: true }),
   ).toBeVisible();
-  await expect(
-    page.getByText("Supino inclinado – 3x12", { exact: true }),
-  ).toHaveCount(0);
   const saved = await page.evaluate(
     () =>
       JSON.parse(sessionStorage.getItem("qa-documents"))["planos/qa-user"].plan

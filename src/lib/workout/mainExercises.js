@@ -104,7 +104,75 @@ export const MAIN_EXERCISE_CATALOG = [
 ];
 
 export const MAIN_EXERCISE_GUIDANCE =
-  "Gere somente exercícios do catálogo permitido enviado no formulário e compatíveis com o local escolhido. Use exatamente o nome do catálogo e acrescente séries/repetições se necessário. Priorize movimentos compostos e exercícios fundamentais do grupo, evite variações redundantes e não troque o grupo muscular do dia. Respeite a quantidade solicitada por grupo.";
+  "Gere a quantidade informada em exerciciosPorGrupo para cada grupo (até cinco exercícios, se houver opções distintas suficientes), usando somente o catálogo permitido enviado no formulário e exercícios compatíveis com o local escolhido. Use exatamente o nome do catálogo e acrescente séries/repetições. Não repita exercícios, evite variações redundantes e não troque o grupo muscular do dia.";
+
+const EXERCISE_COMPLETION_PRIORITY = {
+  shoulders: [
+    "Desenvolvimento com halteres",
+    "Elevação lateral",
+    "Face pull",
+    "Remada alta",
+    "Voador inverso",
+    "Desenvolvimento Arnold",
+    "Desenvolvimento militar",
+    "Desenvolvimento no Smith",
+  ],
+  chest: [
+    "Supino reto",
+    "Supino inclinado com halteres",
+    "Crossover",
+    "Crucifixo com halteres",
+    "Peck deck",
+    "Supino declinado",
+    "Flexão de braço",
+  ],
+  back: [
+    "Puxada na frente",
+    "Remada baixa",
+    "Barra fixa",
+    "Remada curvada",
+    "Pulldown",
+    "Voador inverso",
+  ],
+  legs: [
+    "Agachamento com barra",
+    "Leg press",
+    "Levantamento terra romeno",
+    "Cadeira extensora",
+    "Cadeira flexora",
+    "Elevação pélvica",
+    "Stiff",
+  ],
+  biceps: [
+    "Rosca direta",
+    "Rosca alternada",
+    "Rosca martelo com halteres",
+    "Rosca martelo",
+    "Rosca direta com mochila",
+  ],
+  triceps: [
+    "Tríceps corda",
+    "Tríceps testa",
+    "Tríceps pulley",
+    "Tríceps banco",
+  ],
+  core: [
+    "Prancha",
+    "Abdominal bicicleta",
+    "Dead bug",
+    "Prancha lateral",
+    "Abdominal tradicional",
+    "Roda abdominal",
+  ],
+  cardio: [
+    "Esteira",
+    "Bicicleta ergométrica",
+    "Remo ergométrico",
+    "Elíptico",
+    "Pular corda",
+    "Escada",
+  ],
+};
 
 const normalize = (value = "") =>
   String(value)
@@ -303,14 +371,53 @@ export function limitToMainExercises(groups, form = {}, expectedGroups = null) {
     const generatedIndex = groups.indexOf(generated);
     if (generatedIndex >= 0) usedGroups.add(generatedIndex);
 
+    const seenExercises = new Set();
     const exercises = generated.exercicios
       .filter(
         (exercise) =>
           groupAllowsExercise(target.grupo, exercise) &&
           isExerciseAvailableAtLocation(exercise, form.local),
       )
-      .slice(0, limit)
-      .map(canonicalizeExercise);
+      .map(canonicalizeExercise)
+      .filter((exercise) => {
+        const value = typeof exercise === "object" ? exercise?.name : exercise;
+        const key = normalize(getExerciseBaseName(value));
+        if (!key || seenExercises.has(key)) return false;
+        seenExercises.add(key);
+        return true;
+      })
+      .slice(0, limit);
+
+    // Only top up a group when the model supplied at least one valid exercise.
+    // An entirely invalid / location-incompatible response must stay rejected.
+    if (!exercises.length) return null;
+
+    if (exercises.length < limit) {
+      const categories = categoriesForGroup(target.grupo);
+      const preferredNames = categories
+        ? [...categories].flatMap(
+            (category) => EXERCISE_COMPLETION_PRIORITY[category] || [],
+          )
+        : [];
+      const preferred = preferredNames
+        .map((name) => catalogByName.get(normalize(name)))
+        .filter(Boolean);
+      const candidates = [...preferred, ...MAIN_EXERCISE_CATALOG];
+
+      for (const candidate of candidates) {
+        if (exercises.length >= limit) break;
+        if (
+          !groupAllowsExercise(target.grupo, candidate.name) ||
+          !isExerciseAvailableAtLocation(candidate.name, form.local)
+        )
+          continue;
+
+        const key = normalize(candidate.name);
+        if (seenExercises.has(key)) continue;
+        seenExercises.add(key);
+        exercises.push(candidate.name);
+      }
+    }
     if (!exercises.length) return null;
 
     return {
