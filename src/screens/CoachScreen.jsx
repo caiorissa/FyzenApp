@@ -3,10 +3,8 @@ import { collection, getDocs } from "firebase/firestore";
 import { MessageCircle, Send, Sparkles } from "lucide-react";
 import PageHeader from "../components/PageHeader.jsx";
 import { db } from "../lib/firebaseConfig.js";
-import {
-  getCoachHeadline,
-  getCoachReply,
-} from "../lib/workout/coachInsights.js";
+import { getCoachHeadline } from "../lib/workout/coachInsights.js";
+import { askFyzenAI } from "../lib/coachChatService.js";
 
 const prompts = [
   "Como está meu progresso?",
@@ -19,6 +17,7 @@ export default function CoachScreen({ user }) {
   const [sessions, setSessions] = useState([]);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
+  const [isSending, setIsSending] = useState(false);
   useEffect(() => {
     if (!user?.uid || !db) return;
     getDocs(collection(db, "workoutSessions", user.uid, "sessions"))
@@ -33,15 +32,33 @@ export default function CoachScreen({ user }) {
       .catch(() => setSessions([]));
   }, [user?.uid]);
   const headline = useMemo(() => getCoachHeadline(sessions), [sessions]);
-  const send = (text = message) => {
+  const send = async (text = message) => {
     const value = text.trim();
-    if (!value) return;
-    setMessages((items) => [
-      ...items,
-      { role: "user", text: value },
-      { role: "coach", text: getCoachReply(value, sessions) },
-    ]);
+    if (!value || isSending) return;
+    const previousMessages = messages;
+    setMessages((items) => [...items, { role: "user", text: value }]);
     setMessage("");
+    setIsSending(true);
+    try {
+      const reply = await askFyzenAI({
+        message: value,
+        history: previousMessages,
+        user,
+      });
+      setMessages((items) => [...items, { role: "coach", text: reply }]);
+    } catch (error) {
+      setMessages((items) => [
+        ...items,
+        {
+          role: "coach",
+          text:
+            error.message ||
+            "Não consegui falar com a IA agora. Tente novamente.",
+        },
+      ]);
+    } finally {
+      setIsSending(false);
+    }
   };
   return (
     <div className="coach-screen">
@@ -57,7 +74,11 @@ export default function CoachScreen({ user }) {
         </div>
       </section>
       <section className="coach-chat" aria-label="Conversa com Fyzen AI">
-        <div className="chat-messages">
+        <div
+          className="chat-messages"
+          aria-live="polite"
+          aria-relevant="additions"
+        >
           {messages.length === 0 && (
             <div className="chat-empty">
               <MessageCircle size={26} />
@@ -69,10 +90,20 @@ export default function CoachScreen({ user }) {
               {item.text}
             </p>
           ))}
+          {isSending && (
+            <p className="chat-message coach" role="status">
+              Fyzen está pensando…
+            </p>
+          )}
         </div>
         <div className="prompt-row">
           {prompts.map((prompt) => (
-            <button key={prompt} type="button" onClick={() => send(prompt)}>
+            <button
+              key={prompt}
+              type="button"
+              onClick={() => send(prompt)}
+              disabled={isSending}
+            >
               {prompt}
             </button>
           ))}
@@ -91,11 +122,14 @@ export default function CoachScreen({ user }) {
             value={message}
             onChange={(event) => setMessage(event.target.value)}
             placeholder="Pergunte ao Fyzen AI"
+            maxLength={1200}
+            disabled={isSending}
           />
           <button
             className="btn-primary"
             type="submit"
             aria-label="Enviar mensagem"
+            disabled={isSending || !message.trim()}
           >
             <Send size={18} />
           </button>

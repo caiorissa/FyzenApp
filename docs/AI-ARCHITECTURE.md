@@ -18,7 +18,7 @@ Os endpoints continuam opcionais: se a geração falhar, o plano determinístico
 
 ## Coach e adaptação
 
-O coach atual constrói respostas locais e específicas para progresso, comparação de volume, progressão de carga, percepção de esforço e finalidade dos exercícios, usando sessões concluídas, séries, carga e repetições. Perguntas livres que não correspondem a esses temas recebem uma resposta de orientação baseada no histórico, sem repetir automaticamente a análise inicial. Isso oferece uma resposta útil sem inventar um endpoint de chat nem expor uma chave de modelo no frontend. Um backend futuro pode receber um resumo mínimo criado por `buildFitnessContext(profile, plan, recentSessions, trends, recovery)`; nunca os documentos brutos completos por padrão.
+O coach envia mensagens para `POST ${VITE_AI_WORKOUT_API_URL}/coach/chat`, implementado em `fyzenbackend/coachRoutes.js`. O backend valida o token Firebase, busca apenas as sessões concluídas do próprio usuário, reduz o contexto a exercícios e séries e limita o histórico da conversa. O modelo é o mesmo cliente OpenRouter/OpenAI do gerador de treinos; chaves permanecem no servidor. Quando o serviço estiver indisponível, a tela informa o erro em vez de fingir que uma resposta local é generativa.
 
 Progressão é determinística: duas sessões no topo da faixa de repetições, com todas as séries prescritas, sugerem um incremento configurável (2,5 kg por padrão). A sugestão é explicada e nunca altera o plano sem escolha explícita do usuário.
 

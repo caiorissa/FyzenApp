@@ -28,6 +28,7 @@ const navigate = async (page, label) => {
     "Acesso gratuito": "Tudo do Fyzen, grátis",
     "Painel Ultra": "Sua evolução em detalhe",
     Admin: "Visão administrativa",
+    IA: "Fyzen AI",
   };
   await expect(
     page.getByRole("heading", { name: titles[label], exact: true }),
@@ -40,6 +41,57 @@ const noOverflow = async (page) =>
       () => document.documentElement.scrollWidth <= innerWidth + 1,
     ),
   ).toBe(true);
+
+test("Fyzen AI conversa com o modelo e mantém o contexto da conversa", async ({
+  page,
+}) => {
+  const requests = [];
+  const authorizationHeaders = [];
+  await page.route("**/coach/chat", async (route) => {
+    requests.push(route.request().postDataJSON());
+    authorizationHeaders.push(route.request().headers().authorization);
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        reply:
+          requests.length === 1
+            ? "Seu volume total foi 1.080 kg nesta sessão salva."
+            : "Supino reto trabalha principalmente o peitoral.",
+      }),
+    });
+  });
+  await page.goto("/");
+  await navigate(page, "IA");
+
+  await page.getByRole("button", { name: "Como está meu progresso?" }).click();
+  await expect(
+    page.getByText("Seu volume total foi 1.080 kg nesta sessão salva."),
+  ).toBeVisible();
+
+  await page.getByLabel("Pergunte ao Fyzen AI").fill("E o supino reto?");
+  await page.getByRole("button", { name: "Enviar mensagem" }).click();
+  await expect(
+    page.getByText("Supino reto trabalha principalmente o peitoral."),
+  ).toBeVisible();
+
+  expect(requests).toHaveLength(2);
+  expect(authorizationHeaders).toEqual([
+    "Bearer qa-id-token",
+    "Bearer qa-id-token",
+  ]);
+  expect(requests[0]).toMatchObject({
+    message: "Como está meu progresso?",
+    history: [],
+  });
+  expect(requests[1].history).toEqual([
+    { role: "user", content: "Como está meu progresso?" },
+    {
+      role: "assistant",
+      content: "Seu volume total foi 1.080 kg nesta sessão salva.",
+    },
+  ]);
+});
 
 for (const width of [360, 390, 768, 1024, 1440]) {
   test(`principais telas sem overflow em ${width}px`, async ({ page }) => {

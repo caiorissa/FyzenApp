@@ -1,5 +1,6 @@
 export const user = {
   uid: "qa-user",
+  getIdToken: async () => "qa-id-token",
   displayName: "Marina Costa",
   email: "qa@example.test",
   emailVerified: true,
