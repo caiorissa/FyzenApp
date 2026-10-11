@@ -345,41 +345,22 @@ test("Ultra, verificação de e-mail e menu mobile", async ({ page }) => {
   await expect(page.getByRole("status")).toContainText("Novo e-mail enviado");
 });
 
-test("checklist: conclusão registra uma vez e persiste ao trocar de tela", async ({
+test("lista de exercícios não tem checklist e permite abrir treinos de outros dias", async ({
   page,
 }) => {
   await page.clock.setFixedTime(new Date("2026-09-07T15:00:00Z"));
   await page.goto("/");
   await navigate(page, "Treino");
-  const checks = page.getByRole("checkbox");
-  await expect(checks).toHaveCount(3);
-  for (const checkbox of await checks.all()) await checkbox.click();
-  await expect(checks.first()).toHaveAttribute("aria-checked", "true");
-  await expect
-    .poll(async () =>
-      page.evaluate(
-        () =>
-          Object.keys(
-            JSON.parse(sessionStorage.getItem("qa-documents") || "{}"),
-          ).filter((key) => key.startsWith("historicoTreino/")).length,
-      ),
-    )
-    .toBe(1);
-  await navigate(page, "Início");
-  await navigate(page, "Treino");
-  await expect(checks.first()).toHaveAttribute("aria-checked", "true");
   await page.getByRole("button", { name: "Terça", exact: true }).click();
-  await expect(checks.first()).toBeDisabled();
-  await page.getByRole("button", { name: "Segunda", exact: true }).click();
-  await expect(checks.first()).toHaveAttribute("aria-checked", "true");
-  expect(
-    await page.evaluate(
-      () =>
-        Object.keys(
-          JSON.parse(sessionStorage.getItem("qa-documents") || "{}"),
-        ).filter((key) => key.startsWith("historicoTreino/")).length,
-    ),
-  ).toBe(1);
+  await expect(page.getByRole("checkbox")).toHaveCount(0);
+  const startButton = page
+    .getByRole("button", { name: "Iniciar modo treino" })
+    .first();
+  await expect(startButton).toBeEnabled();
+  await startButton.click();
+  await expect(
+    page.getByRole("button", { name: "Iniciar treino" }),
+  ).toBeVisible();
 });
 
 test("modo treino registra série, descansa e finaliza em uma sessão versionada", async ({
@@ -457,6 +438,49 @@ test("modo treino retoma a série registrada após refresh", async ({ page }) =>
   await page.getByRole("button", { name: "Continuar treino" }).click();
   await expect(page.getByRole("main", { name: "Modo treino" })).toBeVisible();
   await expect(page.getByLabel("Carga da série 1 em kg")).toHaveValue("70");
+});
+
+test("modo treino copia dados da série, pausa e confirma descarte", async ({
+  page,
+}) => {
+  await page.clock.setFixedTime(new Date("2026-09-07T15:00:00Z"));
+  await page.goto("/");
+  await navigate(page, "Treino");
+  await page
+    .getByRole("button", { name: "Iniciar modo treino" })
+    .first()
+    .click();
+  await page.getByRole("button", { name: "Iniciar treino" }).click();
+  await page.getByLabel("Carga da série 1 em kg").fill("65");
+  await page.getByLabel("Repetições da série 1").fill("8");
+  await page.getByRole("button", { name: "Concluir série 1" }).click();
+  await expect(page.getByLabel("Carga da série 2 em kg")).toHaveValue("65");
+  await expect(page.getByLabel("Repetições da série 2")).toHaveValue("8");
+
+  await page.getByRole("button", { name: "Mais opções" }).click();
+  await page.getByRole("menuitem", { name: "Pausar e sair" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Seu plano de treino" }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Iniciar modo treino" })
+    .first()
+    .click();
+  await expect(page.getByRole("main", { name: "Modo treino" })).toBeVisible();
+  await expect(page.getByLabel("Carga da série 2 em kg")).toHaveValue("65");
+
+  await page.getByRole("button", { name: "Mais opções" }).click();
+  await page.getByRole("menuitem", { name: "Descartar treino" }).click();
+  const dialog = page.getByRole("alertdialog");
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Continuar treino" }).click();
+  await expect(dialog).toHaveCount(0);
+  await page.getByRole("button", { name: "Mais opções" }).click();
+  await page.getByRole("menuitem", { name: "Descartar treino" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Descartar treino" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Seu plano de treino" }),
+  ).toBeVisible();
 });
 
 for (const width of [320, 360, 390, 430]) {

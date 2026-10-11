@@ -3,6 +3,7 @@ import { Play } from "lucide-react";
 import ExerciseVideoModal from "./ExerciseVideoModal.jsx";
 import {
   getExerciseVideoUrl,
+  getLocalExerciseVideoUrl,
   getYouTubeEmbedUrl,
 } from "@/lib/workout/exerciseVideos.js";
 
@@ -29,13 +30,16 @@ export default function ExerciseVideoLink({
   const href = `https://www.youtube.com/results?search_query=${query}`;
   const directUrl = videoUrl || getExerciseVideoUrl(exerciseName);
   const embedUrl = getYouTubeEmbedUrl(directUrl);
+  const localVideoUrl = getLocalExerciseVideoUrl(directUrl);
   const className = `inline-flex w-fit items-center gap-1.5 rounded-lg border border-fyzen-accent/25 bg-fyzen-accent/[0.06] text-fyzen-accent transition hover:bg-fyzen-accent/15 ${
-    compact ? "px-2.5 py-1.5 text-xs" : "px-3 py-2 text-sm"
+    compact
+      ? "exercise-video-link-compact px-2 py-1 text-[11px]"
+      : "px-3 py-2 text-sm"
   }`;
 
   return (
     <>
-      {embedUrl ? (
+      {embedUrl || localVideoUrl ? (
         <button
           type="button"
           aria-label={`Ver vídeo de demonstração de ${name}`}
@@ -43,7 +47,7 @@ export default function ExerciseVideoLink({
           onClick={() => setIsOpen(true)}
         >
           <Play className="h-3.5 w-3.5" aria-hidden="true" />
-          Vídeo de exemplo
+          {compact ? "Ver vídeo" : "Vídeo de exemplo"}
         </button>
       ) : (
         <a
@@ -54,13 +58,14 @@ export default function ExerciseVideoLink({
           className={className}
         >
           <Play className="h-3.5 w-3.5" aria-hidden="true" />
-          Vídeo de exemplo
+          {compact ? "Ver vídeo" : "Vídeo de exemplo"}
         </a>
       )}
-      {isOpen && embedUrl && (
+      {isOpen && (embedUrl || localVideoUrl) && (
         <ExerciseVideoModal
           exerciseName={name}
           embedUrl={embedUrl}
+          videoUrl={localVideoUrl}
           onClose={() => setIsOpen(false)}
         />
       )}

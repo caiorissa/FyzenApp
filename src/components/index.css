@@ -678,6 +678,92 @@
   border-color: var(--line);
   background: var(--surface);
 }
+.screen-content .plan-exercises {
+  margin-top: 18px;
+  border-top: 1px solid #ffffff12;
+}
+.plan-exercises-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 16px 0 8px;
+  color: #9eb4b8;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.plan-exercises-heading span:last-child {
+  color: #779399;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.plan-exercises ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.plan-exercises li {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 62px;
+  padding: 9px 0;
+  border-top: 1px solid #ffffff0b;
+}
+.plan-exercise-index {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid #89d5bf26;
+  border-radius: 9px;
+  background: #89d5bf0b;
+  color: #8dcfbd;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+.plan-exercise-description {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px 8px;
+}
+.plan-exercise-description > span {
+  color: #e0e9e9;
+  font-size: 14px;
+  font-weight: 550;
+  line-height: 1.35;
+}
+.plan-exercise-description small {
+  flex: 0 0 auto;
+  padding: 3px 6px;
+  border: 1px solid #ffffff12;
+  border-radius: 6px;
+  background: #ffffff07;
+  color: #9db1b4;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.screen-content .plan-exercises .exercise-video-link-compact {
+  min-width: 0;
+  min-height: 36px;
+  padding: 7px 9px;
+  gap: 5px;
+  border-radius: 9px;
+  white-space: nowrap;
+}
+.plan-exercises .exercise-video-link-compact svg {
+  width: 13px;
+  height: 13px;
+}
 .screen-content .text-slate-500,
 .fyzen-dialog .text-slate-500 {
   color: #99afb4;
@@ -1086,6 +1172,82 @@
   font-size: 12px;
   margin-top: 2px;
 }
+.workout-options {
+  position: fixed;
+  z-index: 20;
+  top: max(64px, calc(env(safe-area-inset-top) + 54px));
+  right: 16px;
+  display: grid;
+  width: min(240px, calc(100vw - 32px));
+  gap: 4px;
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #142629;
+  box-shadow: 0 16px 38px #0008;
+}
+.workout-options button {
+  min-height: 46px;
+  padding: 0 12px;
+  border-radius: 9px;
+  color: var(--ink);
+  text-align: left;
+}
+.workout-options button:hover,
+.workout-options button:focus-visible {
+  background: #ffffff0c;
+}
+.workout-options button:last-child {
+  color: #ffb5b5;
+}
+.workout-confirm-backdrop {
+  position: fixed;
+  z-index: 30;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: #050b0dcc;
+}
+.workout-confirm {
+  position: relative;
+  width: min(100%, 430px);
+  padding: 26px 20px 20px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: 0 24px 60px #0008;
+}
+.workout-confirm h2 {
+  padding-right: 36px;
+  font-size: 22px;
+}
+.workout-confirm p {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.workout-confirm-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+.workout-confirm > div {
+  display: grid;
+  gap: 8px;
+  margin-top: 20px;
+}
+.workout-confirm > div button {
+  min-height: 46px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  color: var(--ink);
+}
+.workout-confirm > div .discard-workout-button {
+  border-color: #a65353;
+  color: #ffb5b5;
+}
 .workout-progress {
   margin: 20px 0 24px;
   color: var(--muted);
@@ -1348,6 +1510,15 @@
 }
 .set-action-dock .set-complete span {
   opacity: 0.78;
+}
+.completed-exercise-note {
+  max-width: 760px;
+  margin: 18px auto;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--muted);
+  font-size: 13px;
 }
 .rest-timer {
   position: sticky;

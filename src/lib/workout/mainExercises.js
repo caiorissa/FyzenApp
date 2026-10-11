@@ -1,8 +1,9 @@
-export const MAX_MAIN_EXERCISES_PER_GROUP = 3;
+export const MAX_MAIN_EXERCISES_PER_GROUP = 5;
 
 export const MAIN_EXERCISE_CATALOG = [
   { name: "Abdominal bicicleta", category: "core" },
   { name: "Abdominal canivete", category: "core" },
+  { name: "Abdominal tradicional", category: "core" },
   { name: "Afundo", category: "legs" },
   { name: "Agachamento com halteres", category: "legs" },
   { name: "Agachamento goblet", category: "legs" },
@@ -59,6 +60,7 @@ export const MAIN_EXERCISE_CATALOG = [
   { name: "Paralelas", category: "chest" },
   { name: "Passada andando", category: "legs" },
   { name: "Peck deck", category: "chest" },
+  { name: "Voador inverso", categories: ["back", "shoulders"] },
   { name: "Pulldown", category: "back" },
   { name: "Pullover na máquina", category: "back" },
   { name: "Pular corda", category: "cardio" },
@@ -168,6 +170,7 @@ const GYM_ONLY_EXERCISES = new Set([
   "Supino reto",
   "Tríceps corda",
   "Tríceps pulley",
+  "Voador inverso",
 ]);
 
 function exerciseCatalogEntry(exercise) {

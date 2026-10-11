@@ -26,3 +26,9 @@ export function getYouTubeEmbedUrl(videoUrl) {
     return "";
   }
 }
+
+export function getLocalExerciseVideoUrl(videoUrl) {
+  return /^\/videos\/exercises\/[a-z0-9-]+\.mp4$/i.test(String(videoUrl || ""))
+    ? videoUrl
+    : "";
+}

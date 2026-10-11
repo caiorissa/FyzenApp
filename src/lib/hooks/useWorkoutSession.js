@@ -115,13 +115,23 @@ export function useWorkoutSession({ uid, workout, day }) {
           exercises: current.exercises.map((item, eIndex) =>
             eIndex !== exerciseIndex
               ? item
-              : {
-                  ...item,
-                  sets: item.sets.map((set, index) =>
-                    index !== setIndex
-                      ? set
-                      : { ...set, completed: true, completedAt: Date.now() },
-                  ),
+                  : {
+                      ...item,
+                      sets: item.sets.map((set, index) => {
+                        if (index === setIndex)
+                          return {
+                            ...set,
+                            completed: true,
+                            completedAt: Date.now(),
+                          };
+                        if (index === setIndex + 1 && !set.completed)
+                          return {
+                            ...set,
+                            weight: set.weight || exercise.sets[setIndex]?.weight || "",
+                            reps: set.reps || exercise.sets[setIndex]?.reps || "",
+                          };
+                        return set;
+                      }),
                 },
           ),
         };

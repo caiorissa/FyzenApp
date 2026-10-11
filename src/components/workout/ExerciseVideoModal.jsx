@@ -4,6 +4,7 @@ import Dialog from "../Dialog.jsx";
 export default function ExerciseVideoModal({
   exerciseName,
   embedUrl,
+  videoUrl,
   onClose,
 }) {
   return (
@@ -30,15 +31,27 @@ export default function ExerciseVideoModal({
           </button>
         </div>
         <div className="aspect-video overflow-hidden rounded-xl bg-black">
-          <iframe
-            key={embedUrl}
-            title={`Vídeo de demonstração de ${exerciseName}`}
-            src={embedUrl}
-            className="h-full w-full"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            referrerPolicy="strict-origin-when-cross-origin"
-            allowFullScreen
-          />
+          {videoUrl ? (
+            <video
+              key={videoUrl}
+              title={`Vídeo de demonstração de ${exerciseName}`}
+              src={videoUrl}
+              className="h-full w-full"
+              controls
+              autoPlay
+              playsInline
+            />
+          ) : (
+            <iframe
+              key={embedUrl}
+              title={`Vídeo de demonstração de ${exerciseName}`}
+              src={embedUrl}
+              className="h-full w-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              referrerPolicy="strict-origin-when-cross-origin"
+              allowFullScreen
+            />
+          )}
         </div>
       </div>
     </Dialog>

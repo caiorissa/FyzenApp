@@ -1,10 +1,10 @@
 # Catálogo de exercícios para gravação
 
-A Fyzen AI pode escolher até três exercícios por grupo e só pode usar nomes deste catálogo. O catálogo tem 95 movimentos; o levantamento terra romeno aparece em pernas e costas, e a remada alta aparece em costas e ombros, mas cada um precisa de apenas um vídeo. Séries, repetições e carga podem variar sem exigir outra gravação.
+A Fyzen AI pode escolher até cinco exercícios por grupo e só pode usar nomes deste catálogo. O catálogo tem 97 movimentos; o levantamento terra romeno aparece em pernas e costas, o voador inverso em costas e ombros, e a remada alta em costas e ombros, mas cada movimento precisa de apenas um vídeo. Séries, repetições e carga podem variar sem exigir outra gravação.
 
-O arquivo `src/lib/workout/exerciseVideos.js` já tem uma linha vazia para cada exercício. Quando tiver o vídeo, cole o link entre as aspas daquela linha, por exemplo: `"Supino reto": "https://youtu.be/ID_DO_VIDEO"`. O botão passa a abrir o player do YouTube no modal. São aceitos links `youtube.com/watch`, `youtu.be`, `/embed/` e `/shorts/`; sem link válido, o botão continua oferecendo a busca no YouTube.
+O arquivo `src/lib/workout/exerciseVideos.js` tem uma linha para cada exercício. Os 14 vídeos gravados pela equipe ficam em `public/videos/exercises/` e abrem no player local do modal; os outros exercícios usam links diretos do YouTube. Links `youtube.com/watch`, `youtu.be`, `/embed/` e `/shorts/` abrem no player do YouTube no mesmo modal. Para trocar um link, cole a URL entre as aspas daquela linha, por exemplo: `"Supino reto": "https://youtu.be/ID_DO_VIDEO"`. Se adicionar um exercício ao catálogo, inclua o vídeo dele nessa lista.
 
-Na academia, a IA pode usar os 95 movimentos do catálogo. Em casa, a lista enviada à IA e a resposta são filtradas para remover os 43 movimentos que dependem de máquinas ou equipamentos específicos de academia; ficam 52 opções compatíveis com casa.
+Na academia, a IA pode usar os 97 movimentos do catálogo. Em casa, a lista enviada à IA e a resposta são filtradas para remover os 44 movimentos que dependem de máquinas ou equipamentos específicos de academia; ficam 53 opções compatíveis com casa.
 
 ## Peito
 
@@ -42,6 +42,7 @@ Na academia, a IA pode usar os 95 movimentos do catálogo. Em casa, a lista envi
 - Remada invertida na mesa
 - Remada unilateral
 - Remada alta (academia; também trabalha ombros)
+- Voador inverso (academia; também trabalha ombros)
 - Serrote com halter
 
 ## Pernas e glúteos
@@ -104,6 +105,7 @@ Na academia, a IA pode usar os 95 movimentos do catálogo. Em casa, a lista envi
 
 - Abdominal bicicleta
 - Abdominal canivete
+- Abdominal tradicional
 - Dead bug
 - Escalador (mountain climber)
 - Prancha

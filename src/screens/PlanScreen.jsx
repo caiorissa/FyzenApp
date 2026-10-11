@@ -14,7 +14,7 @@ import {
 import { db } from "../lib/firebaseConfig";
 import { subscribeAuth } from "../lib/subscribeAuth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
-import WorkoutChecklist from "@/components/WorkoutChecklist";
+import WorkoutExerciseList from "@/components/WorkoutExerciseList";
 import WeeklyInsightsModal from "@/components/premium/WeeklyInsightsModal";
 import { gerarWeeklyInsights } from "@/lib/premium/weeklyInsights";
 import RegenerateDayButton from "@/components/premium/RegenerateDayButton";
@@ -25,20 +25,6 @@ import {
   getMainExercisesPerGroup,
   limitToMainExercises,
 } from "@/lib/workout/mainExercises";
-
-const diasSemana = [
-  "domingo",
-  "segunda",
-  "terça",
-  "quarta",
-  "quinta",
-  "sexta",
-  "sábado",
-];
-
-function getDiaSemanaAtual() {
-  return diasSemana[new Date().getDay()];
-}
 
 const initialForm = {
   sexo: "",
@@ -76,9 +62,6 @@ export default function PlanScreen({ onStartWorkout }) {
   const [openInsights, setOpenInsights] = useState(false);
   const [diaSelecionado, setDiaSelecionado] = useState("segunda");
   const skipInsights = false;
-  const [bloqueado, setBloqueado] = useState(false);
-  const [mensagem, setMensagem] = useState("");
-
   const { nivel, isUltra } = usePremium();
 
   useEffect(() => {
@@ -97,8 +80,6 @@ export default function PlanScreen({ onStartWorkout }) {
 
     return () => unsubscribe();
   }, []);
-
-  const diaAtual = getDiaSemanaAtual();
 
   const treinosPorDiaMemo = useMemo(() => {
     if (!plan?.treinos) return {};
@@ -119,30 +100,6 @@ export default function PlanScreen({ onStartWorkout }) {
   const treinosDoDia = useMemo(() => {
     return treinosPorDiaMemo[diaSelecionado] || [];
   }, [treinosPorDiaMemo, diaSelecionado]);
-
-  useEffect(() => {
-    if (!diaSelecionado) return;
-
-    const indexAtual = diasSemana.indexOf(diaAtual);
-    const indexTreino = diasSemana.indexOf(diaSelecionado);
-
-    if (indexTreino > indexAtual) {
-      setBloqueado(true);
-      setMensagem(
-        `Hoje é ${diaAtual}. Volte na ${diaSelecionado} para completar este treino.`,
-      );
-      return;
-    }
-
-    if (indexTreino < indexAtual) {
-      setBloqueado(true);
-      setMensagem(`Você já passou o dia de ${diaSelecionado}.`);
-      return;
-    }
-
-    setBloqueado(false);
-    setMensagem("");
-  }, [diaSelecionado, diaAtual]);
 
   const carregarPlano = async (uid) => {
     try {
@@ -883,6 +840,8 @@ export default function PlanScreen({ onStartWorkout }) {
               <option value="1">1 exercício</option>
               <option value="2">2 exercícios</option>
               <option value="3">3 exercícios</option>
+              <option value="4">4 exercícios</option>
+              <option value="5">5 exercícios</option>
             </Select>
           </form>
 
@@ -1021,24 +980,14 @@ export default function PlanScreen({ onStartWorkout }) {
                         {treino.grupo}
                       </p>
 
-                      {bloqueado && (
-                        <p className="text-sm text-fyzen-muted mt-2">
-                          {mensagem}
-                        </p>
-                      )}
-
-                      <WorkoutChecklist
+                      <WorkoutExerciseList
                         key={`${diaSelecionado}-${treino._globalIndex}`}
                         treino={treino.exercicios}
-                        grupo={treino.grupo}
-                        dia={diaSelecionado}
-                        bloqueado={bloqueado}
                       />
 
                       <button
                         type="button"
                         className="btn-primary mt-4 w-full"
-                        disabled={bloqueado}
                         onClick={() => onStartWorkout?.(treino, diaSelecionado)}
                       >
                         <Dumbbell size={17} /> Iniciar modo treino

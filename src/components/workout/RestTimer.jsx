@@ -13,9 +13,11 @@ export default function RestTimer({
 }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
+    if (!endsAt) return undefined;
+    setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [endsAt]);
   const remaining = Math.max(0, Math.ceil(((endsAt || 0) - now) / 1000));
   useEffect(() => {
     if (endsAt && remaining === 0 && vibration && navigator.vibrate)

@@ -22,7 +22,8 @@ export default function SetRow({ set, active, onChange }) {
         <input
           inputMode="numeric"
           type="number"
-          min="0"
+          min="1"
+          step="1"
           value={set.reps}
           placeholder="—"
           onChange={(event) => onChange({ reps: event.target.value })}
