@@ -343,11 +343,13 @@ export default function WorkoutSessionScreen({
           >
             <ChevronLeft />
           </button>
-          <div>
+          <div className="exercise-title-block">
             <p className="exercise-eyebrow">Exercício atual</p>
             <h1>{exercise.name}</h1>
-            <span>{exercise.muscleGroup}</span>
-            <ExerciseVideoLink exerciseName={exercise.name} compact />
+            <div className="exercise-meta">
+              <span>{exercise.muscleGroup}</span>
+              <ExerciseVideoLink exerciseName={exercise.name} compact />
+            </div>
           </div>
           <button
             type="button"

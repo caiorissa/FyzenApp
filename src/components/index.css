@@ -1375,10 +1375,33 @@
 .exercise-nav {
   text-align: left;
 }
+.exercise-title-block {
+  min-width: 0;
+}
 .exercise-nav h1 {
   font-size: clamp(30px, 9vw, 44px);
   line-height: 1.04;
   letter-spacing: -0.045em;
+  overflow-wrap: anywhere;
+}
+.exercise-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin-top: 12px;
+}
+.exercise-meta > span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.exercise-meta .exercise-video-link-compact {
+  min-height: 36px;
+  padding: 7px 10px;
+  border-radius: 10px;
 }
 .exercise-eyebrow {
   color: var(--accent) !important;

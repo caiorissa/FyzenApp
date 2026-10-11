@@ -93,6 +93,14 @@ test("modo treino mantém acessibilidade em 390px", async ({ page }) => {
     .click();
   await page.getByRole("button", { name: "Iniciar treino" }).click();
   await expect(page.getByRole("main", { name: "Modo treino" })).toBeVisible();
+  const meta = page.locator(".exercise-meta");
+  const metaChildren = meta.locator(":scope > *");
+  const overlaps = await metaChildren.evaluateAll(([muscle, video]) => {
+    const a = muscle.getBoundingClientRect();
+    const b = video.getBoundingClientRect();
+    return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+  });
+  expect(overlaps).toBe(false);
   await expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth + 1,
