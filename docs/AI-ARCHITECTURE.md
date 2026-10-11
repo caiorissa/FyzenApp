@@ -18,7 +18,7 @@ Os endpoints continuam opcionais: se a geração falhar, o plano determinístico
 
 ## Coach e adaptação
 
-O coach atual constrói uma leitura local a partir de sessões concluídas, séries, carga, repetições e volume. Isso oferece uma resposta útil sem inventar um endpoint de chat nem expor uma chave de modelo no frontend. Um backend futuro pode receber um resumo mínimo criado por `buildFitnessContext(profile, plan, recentSessions, trends, recovery)`; nunca os documentos brutos completos por padrão.
+O coach atual constrói respostas locais e específicas para progresso, comparação de volume, progressão de carga, percepção de esforço e finalidade dos exercícios, usando sessões concluídas, séries, carga e repetições. Perguntas livres que não correspondem a esses temas recebem uma resposta de orientação baseada no histórico, sem repetir automaticamente a análise inicial. Isso oferece uma resposta útil sem inventar um endpoint de chat nem expor uma chave de modelo no frontend. Um backend futuro pode receber um resumo mínimo criado por `buildFitnessContext(profile, plan, recentSessions, trends, recovery)`; nunca os documentos brutos completos por padrão.
 
 Progressão é determinística: duas sessões no topo da faixa de repetições, com todas as séries prescritas, sugerem um incremento configurável (2,5 kg por padrão). A sugestão é explicada e nunca altera o plano sem escolha explícita do usuário.
 

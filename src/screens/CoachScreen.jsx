@@ -4,9 +4,9 @@ import { MessageCircle, Send, Sparkles } from "lucide-react";
 import PageHeader from "../components/PageHeader.jsx";
 import { db } from "../lib/firebaseConfig.js";
 import {
-  calculateWorkoutVolume,
-  getProgressionSuggestion,
-} from "../lib/workout/analytics.js";
+  getCoachHeadline,
+  getCoachReply,
+} from "../lib/workout/coachInsights.js";
 
 const prompts = [
   "Como está meu progresso?",
@@ -14,23 +14,6 @@ const prompts = [
   "Meu treino está muito fácil.",
   "Por que faço esse exercício?",
 ];
-
-function insightFor(question, sessions) {
-  const recent = sessions.slice(-3);
-  if (!recent.length)
-    return "Conclua seu primeiro treino no Modo Treino. A partir dele, o Fyzen passa a considerar séries, carga e repetições nas análises.";
-  const volume = recent.reduce(
-    (total, session) => total + calculateWorkoutVolume(session.exercises),
-    0,
-  );
-  const exercise = recent.at(-1)?.exercises?.[0];
-  const suggestion = exercise && getProgressionSuggestion(exercise, sessions);
-  if (/aumentar|fácil/i.test(question) && suggestion)
-    return `Nos seus dois últimos registros de ${exercise.name}, você chegou ao topo da faixa de repetições. Uma progressão pequena de ${suggestion.from} kg para ${suggestion.to} kg é razoável no próximo treino.`;
-  if (/por que/i.test(question) && exercise)
-    return `${exercise.name} está no seu plano para desenvolver ${exercise.muscleGroup.toLowerCase()}. O Fyzen mostrará a relação com seu objetivo quando houver mais sessões para comparar.`;
-  return `Nas últimas ${recent.length} sessões, você registrou ${Math.round(volume).toLocaleString("pt-BR")} kg de volume. Esta leitura compara apenas o seu próprio histórico; ela fica mais precisa à medida que você conclui novos treinos.`;
-}
 
 export default function CoachScreen({ user }) {
   const [sessions, setSessions] = useState([]);
@@ -49,14 +32,14 @@ export default function CoachScreen({ user }) {
       )
       .catch(() => setSessions([]));
   }, [user?.uid]);
-  const headline = useMemo(() => insightFor("progresso", sessions), [sessions]);
+  const headline = useMemo(() => getCoachHeadline(sessions), [sessions]);
   const send = (text = message) => {
     const value = text.trim();
     if (!value) return;
     setMessages((items) => [
       ...items,
       { role: "user", text: value },
-      { role: "coach", text: insightFor(value, sessions) },
+      { role: "coach", text: getCoachReply(value, sessions) },
     ]);
     setMessage("");
   };
