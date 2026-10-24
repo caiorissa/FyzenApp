@@ -7,6 +7,8 @@ import { useToast } from "../components/Toast.jsx";
 import { db } from "../lib/firebaseConfig";
 import { subscribeAuth } from "../lib/subscribeAuth";
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import WeeklyMealPlanSection from "../components/nutrition/WeeklyMealPlanSection.jsx";
+import { buildWeeklyMealPlanUpdate } from "../lib/mealPlanPersistence.js";
 
 const fadeIn = {
   initial: false,
@@ -24,6 +26,9 @@ const getDiaRef = (uid, diaISO) => doc(db, "nutrition", uid, "days", diaISO);
 export default function NutritionScreen() {
   const [user, setUser] = useState(null);
   const [metaCalorica, setMetaCalorica] = useState(0);
+  const [savedPlanData, setSavedPlanData] = useState(null);
+  const [loadingPlanContext, setLoadingPlanContext] = useState(true);
+  const [planContextError, setPlanContextError] = useState("");
   const [diaSelecionado, setDiaSelecionado] = useState(hojeISO());
   const [refeicoes, setRefeicoes] = useState([]);
   const [totalConsumido, setTotalConsumido] = useState(0);
@@ -39,7 +44,13 @@ export default function NutritionScreen() {
 
   useEffect(() => {
     const unsub = subscribeAuth(async (u) => {
-      if (!u) return;
+      if (!u) {
+        setUser(null);
+        setSavedPlanData(null);
+        setMetaCalorica(0);
+        setLoadingPlanContext(false);
+        return;
+      }
       setUser(u);
       await carregarMeta(u.uid);
     });
@@ -48,19 +59,40 @@ export default function NutritionScreen() {
   }, []);
 
   const carregarMeta = async (uid) => {
+    setLoadingPlanContext(true);
+    setPlanContextError("");
     try {
       const ref = doc(db, "planos", uid);
       const snap = await getDoc(ref);
-
-      if (snap.exists() && snap.data().nutrition) {
-        setMetaCalorica(snap.data().nutrition.total || 0);
-      } else {
-        setMetaCalorica(0);
-      }
+      const data = snap.exists() ? snap.data() : null;
+      setSavedPlanData(data);
+      setMetaCalorica(Number(data?.nutrition?.total) || 0);
     } catch (err) {
       console.error("Erro ao carregar meta:", err);
       setMetaCalorica(0);
+      setSavedPlanData(null);
+      setPlanContextError("Não foi possível carregar seu perfil e plano salvos.");
+    } finally {
+      setLoadingPlanContext(false);
     }
+  };
+
+  const salvarPlanoAlimentarSemanal = async (planoSemanal, preferencias) => {
+    if (!user) throw new Error("Entre na sua conta para salvar o plano alimentar.");
+    const update = buildWeeklyMealPlanUpdate(
+      planoSemanal,
+      preferencias,
+      serverTimestamp(),
+    );
+    await setDoc(
+      doc(db, "planos", user.uid),
+      update,
+      { merge: true },
+    );
+    setSavedPlanData((previous) => ({
+      ...(previous || {}),
+      nutrition: { ...(previous?.nutrition || {}), ...update.nutrition },
+    }));
   };
 
   const carregarDia = useCallback(async (uid, diaISO) => {
@@ -204,6 +236,19 @@ export default function NutritionScreen() {
       <PageHeader
         title="Seu diário alimentar"
         description="Registre suas refeições e acompanhe o dia com mais clareza."
+      />
+      {planContextError && (
+        <p role="alert" className="rounded-xl border border-rose-300/20 bg-rose-400/5 p-3 text-sm text-rose-200">
+          {planContextError} A geração do plano semanal ficará disponível quando esses dados puderem ser carregados.
+        </p>
+      )}
+      <WeeklyMealPlanSection
+        user={user}
+        savedData={savedPlanData}
+        initialPlan={savedPlanData?.nutrition?.planoSemanal || null}
+        initialPreferences={savedPlanData?.nutrition?.preferenciasPlanoSemanal}
+        loadingContext={loadingPlanContext}
+        onSave={salvarPlanoAlimentarSemanal}
       />
       {loadError && (
         <ErrorState

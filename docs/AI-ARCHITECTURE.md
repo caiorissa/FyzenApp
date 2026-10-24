@@ -28,3 +28,12 @@ Progressão é determinística: duas sessões no topo da faixa de repetições, 
 - e1RM usa Epley até 12 repetições e é explicitamente uma estimativa.
 - Respostas de IA futuras precisam de schema/limites antes de serem exibidas ou aplicadas.
 - Dor aguda, persistente ou forte não deve receber recomendação de continuar treinando; Fyzen não diagnostica nem prescreve tratamento.
+
+## Plano alimentar semanal
+
+- A Nutrição chama `POST ${VITE_AI_WORKOUT_API_URL}/meal/weekly-plan` com token Firebase Bearer e somente alergias, restrições, preferências e indicação explícita de necessidade clínica. O UID vem do token; perfil, análise, meta calórica e treino são carregados do documento `planos/{uid}` no backend.
+- A rota usa `fyzenbackend/aiWeeklyMealRoutes.js` e o mesmo `aiClient.js`/OpenRouter já configurado. A rota legada `/meal/generate` e a coleção `meal_plans` permanecem intactas.
+- O contexto dos dias usa os grupos e exercícios de `plan.treinos`, na mesma ordem útil usada por `PlanScreen`; dias sem treino salvo são descanso. `nutrition.total` é a meta existente e não é recalculada.
+- O backend e o cliente validam a resposta de sete dias, 3–6 refeições por dia, alimentos, porções aproximadas e estimativas limitadas. Alergias declaradas e restrições conhecidas são limites obrigatórios. Falha da IA, JSON inválido ou resposta que viola uma restrição retorna erro sem fallback inventado.
+- Menores de 18 anos e declarações de necessidade clínica/terapêutica recebem orientação para buscar um profissional. IMC é somente informativo; a Fyzen AI não é apresentada como profissional de saúde.
+- Preferências e sugestão ficam em `planos/{uid}.nutrition.preferenciasPlanoSemanal` e `planos/{uid}.nutrition.planoSemanal`. Edições de alimentos/porções são salvas sem recalcular as estimativas originais. Geração e edição não criam entradas em `nutrition/{uid}/days/{data}`.

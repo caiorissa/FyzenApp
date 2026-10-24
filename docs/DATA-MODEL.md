@@ -8,6 +8,41 @@ Fyzen 2.0 é aditivo. Nenhuma coleção existente foi removida ou renomeada.
 - `historicoTreino/{uid}/registros/{id}`: histórico usado pelas telas antigas.
 - `metas/{uid}`, `nutrition/{uid}/days/{yyyy-mm-dd}` e `progresso/{uid}`.
 
+### Plano alimentar semanal (aditivo)
+
+A sugestão semanal da Fyzen AI e as preferências declaradas são salvas dentro de `nutrition` em `planos/{uid}`. A atualização usa merge e preserva `nutrition.total`, o campo legado `nutrition.plano`, o treino em `plan` e todos os documentos do diário.
+
+```js
+nutrition: {
+  total: 2300, // meta existente, preservada
+  plano: [], // contrato legado, preservado
+  preferenciasPlanoSemanal: {
+    allergies: "amendoim, leite (ou 'Nenhuma conhecida')",
+    restrictions: "sem lactose (ou 'Nenhuma conhecida')",
+    preferences: "comida brasileira",
+    clinicalDietRequired: false
+  },
+  planoSemanal: {
+    version: 1,
+    generatedAt: "ISO-8601",
+    targetCalories: 2300,
+    days: [{
+      day: "segunda",
+      workoutGroups: ["Pernas"],
+      exercises: ["Agachamento livre – 4x10"],
+      isRestDay: false,
+      meals: [{
+        name: "Almoço",
+        foods: [{ item: "Arroz", amount: "100 g" }],
+        estimatedNutrition: { calories: 500, protein: 30, carbs: 60, fat: 15 }
+      }]
+    }]
+  }
+}
+```
+
+Porções e valores nutricionais são estimativas. Se o usuário editar alimentos ou quantidades, os valores gerados ficam identificados como estimativas originais e não são recalculados. O plano é uma sugestão; não é copiado para `nutrition/{uid}/days/{yyyy-mm-dd}`. O diário só muda quando o usuário registra uma refeição nele.
+
 ## Sessões detalhadas
 
 `workoutSessions/{uid}/sessions/{sessionId}` é o novo registro canônico de uma sessão do Modo Treino. `sessionId` nasce no cliente e é reutilizado em cada sync, portanto reenvios são idempotentes.
